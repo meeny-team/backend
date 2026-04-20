@@ -1,6 +1,6 @@
 ---
-name: 기능 추가
-about: 기능 추가
+name: Feature Request
+about: 기능 추가 요청
 title: ''
 labels: ''
 assignees: ''
@@ -8,7 +8,7 @@ assignees: ''
 ---
 
 ---
-name: 기능 추가
+name: Feature Request
 about: 기능 추가 요청
 title: "[FEAT] "
 labels: feat

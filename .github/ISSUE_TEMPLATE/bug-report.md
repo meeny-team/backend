@@ -1,6 +1,6 @@
 ---
-name: 버그 제보
-about: 버그 제보
+name: Bug Report
+about: '버그 제보 '
 title: ''
 labels: ''
 assignees: ''
@@ -19,7 +19,7 @@ assignees: ""
 어떤 문제가 발생했는지 간단히 설명해주세요.
 
 ## 📍 발생 위치
-예: 
+예: 회원가입 API, 로그인 페이지, 토큰 재발급 로직
 
 ## 🔄 재현 방법
 1. 
