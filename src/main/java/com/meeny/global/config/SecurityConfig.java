@@ -4,11 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meeny.global.exception.ErrorCode;
 import com.meeny.global.jwt.JwtAuthenticationFilter;
 import com.meeny.global.jwt.JwtProvider;
-import com.meeny.global.response.ErrorResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -35,14 +33,9 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .headers(h -> h.frameOptions(fo -> fo.disable()))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(e -> e.authenticationEntryPoint((request, response, ex) -> {
-                    response.setStatus(ErrorCode.INVALID_TOKEN.getStatus().value());
-                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                    response.setCharacterEncoding("UTF-8");
-                    response.getWriter().write(
-                            objectMapper.writeValueAsString(ErrorResponse.of(ErrorCode.INVALID_TOKEN))
-                    );
-                }))
+                .exceptionHandling(e -> e.authenticationEntryPoint((request, response, ex) ->
+                        JwtAuthenticationFilter.writeErrorResponse(response, objectMapper, ErrorCode.INVALID_TOKEN)
+                ))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/h2-console/**").permitAll()
                         .anyRequest().authenticated()

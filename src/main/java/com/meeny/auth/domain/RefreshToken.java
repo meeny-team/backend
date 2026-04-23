@@ -7,6 +7,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 
 @Entity
@@ -32,7 +33,7 @@ public class RefreshToken {
         RefreshToken rt = new RefreshToken();
         rt.memberId = memberId;
         rt.token = token;
-        rt.expiresAt = LocalDateTime.now().plusSeconds(expireMs / 1000);
+        rt.expiresAt = LocalDateTime.now().plus(Duration.ofMillis(expireMs));
         return rt;
     }
 

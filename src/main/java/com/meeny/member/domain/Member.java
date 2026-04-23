@@ -36,7 +36,7 @@ public class Member {
         member.provider = provider;
         member.providerId = providerId;
         member.email = email;
-        member.nickname = nickname;
+        member.nickname = (nickname != null && !nickname.isBlank()) ? nickname : "사용자";
         return member;
     }
 }
