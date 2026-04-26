@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: meeny
+
+  datasource:
+    url: jdbc:h2:mem:meenydb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: true
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+jwt:
+  secret: meeny-jwt-secret-key-for-dev-only-must-be-at-least-32-bytes
+  access-token-expire-ms: 3600000
+  refresh-token-expire-ms: 604800000
+
+oauth:
+  apple:
+    client-id: com.meeny.app  # Apple Developer에서 발급한 Bundle ID로 교체
