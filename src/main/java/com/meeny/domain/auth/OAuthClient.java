@@ -1,6 +1,6 @@
 package com.meeny.domain.auth;
 
-import com.meeny.domain.member.SocialProvider;
+import com.meeny.domain.identity.SocialProvider;
 
 public interface OAuthClient {
     SocialProvider provider();

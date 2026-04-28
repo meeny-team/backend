@@ -1,6 +1,6 @@
 package com.meeny.presentation.member.dto;
 
-import com.meeny.domain.member.Member;
+import com.meeny.domain.identity.Member;
 
 public record MemberProfileResponse(
         Long id,

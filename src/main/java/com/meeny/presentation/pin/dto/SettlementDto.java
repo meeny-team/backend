@@ -1,7 +1,7 @@
 package com.meeny.presentation.pin.dto;
 
-import com.meeny.domain.pin.Settlement;
-import com.meeny.domain.pin.SettlementType;
+import com.meeny.domain.activity.pin.Settlement;
+import com.meeny.domain.activity.pin.SettlementType;
 import jakarta.validation.constraints.NotNull;
 
 public record SettlementDto(

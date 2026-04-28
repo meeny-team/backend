@@ -1,7 +1,7 @@
 package com.meeny.presentation.pin.dto;
 
-import com.meeny.domain.pin.Pin;
-import com.meeny.domain.pin.PinCategory;
+import com.meeny.domain.activity.pin.Pin;
+import com.meeny.domain.activity.pin.PinCategory;
 
 import java.time.LocalDateTime;
 import java.util.List;

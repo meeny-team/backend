@@ -3,9 +3,9 @@ package com.meeny.member;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meeny.presentation.auth.dto.SocialLoginRequest;
 import com.meeny.presentation.member.dto.UpdateProfileRequest;
-import com.meeny.domain.auth.OAuthClient;
 import com.meeny.domain.auth.OAuthUserInfo;
-import com.meeny.domain.member.SocialProvider;
+import com.meeny.domain.identity.SocialProvider;
+import com.meeny.infrastructure.oauth.OAuthClientRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -34,18 +35,11 @@ class MemberControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockitoBean(name = "googleOAuthClient")
-    private OAuthClient googleOAuthClient;
-
-    @MockitoBean(name = "kakaoOAuthClient")
-    private OAuthClient kakaoOAuthClient;
-
-    @MockitoBean(name = "appleOAuthClient")
-    private OAuthClient appleOAuthClient;
+    @MockitoBean
+    private OAuthClientRegistry oauthClientRegistry;
 
     private String loginAndGetAccessToken(String providerId, String email, String nickname) throws Exception {
-        given(googleOAuthClient.provider()).willReturn(SocialProvider.GOOGLE);
-        given(googleOAuthClient.getUserInfo(anyString()))
+        given(oauthClientRegistry.getUserInfo(any(SocialProvider.class), anyString()))
                 .willReturn(new OAuthUserInfo(providerId, email, nickname));
 
         MvcResult loginResult = mockMvc.perform(post("/api/auth/social")

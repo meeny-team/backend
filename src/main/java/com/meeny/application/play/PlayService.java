@@ -2,10 +2,10 @@ package com.meeny.application.play;
 
 import com.meeny.common.exception.BusinessException;
 import com.meeny.common.exception.ErrorCode;
-import com.meeny.domain.crew.Crew;
-import com.meeny.domain.crew.CrewRepository;
-import com.meeny.domain.play.Play;
-import com.meeny.domain.play.PlayRepository;
+import com.meeny.domain.activity.crew.Crew;
+import com.meeny.domain.activity.crew.CrewRepository;
+import com.meeny.domain.activity.play.Play;
+import com.meeny.domain.activity.play.PlayRepository;
 import com.meeny.presentation.play.dto.CreatePlayRequest;
 import com.meeny.presentation.play.dto.PlayResponse;
 import com.meeny.presentation.play.dto.UpdatePlayRequest;
