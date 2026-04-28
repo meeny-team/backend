@@ -1,6 +1,6 @@
 package com.meeny.presentation.play.dto;
 
-import com.meeny.domain.play.PlayType;
+import com.meeny.domain.activity.play.PlayType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 

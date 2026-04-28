@@ -1,6 +1,6 @@
 package com.meeny.presentation.pin.dto;
 
-import com.meeny.domain.pin.Split;
+import com.meeny.domain.activity.pin.Split;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 

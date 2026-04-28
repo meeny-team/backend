@@ -1,12 +1,12 @@
 package com.meeny.play;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.meeny.domain.auth.OAuthClient;
 import com.meeny.domain.auth.OAuthUserInfo;
-import com.meeny.domain.member.SocialProvider;
-import com.meeny.domain.pin.PinCategory;
-import com.meeny.domain.pin.SettlementType;
-import com.meeny.domain.play.PlayType;
+import com.meeny.domain.identity.SocialProvider;
+import com.meeny.domain.activity.pin.PinCategory;
+import com.meeny.domain.activity.pin.SettlementType;
+import com.meeny.domain.activity.play.PlayType;
+import com.meeny.infrastructure.oauth.OAuthClientRegistry;
 import com.meeny.presentation.auth.dto.SocialLoginRequest;
 import com.meeny.presentation.crew.dto.CreateCrewRequest;
 import com.meeny.presentation.crew.dto.JoinByCodeRequest;
@@ -29,6 +29,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -44,20 +45,13 @@ class PlaySettlementTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockitoBean(name = "googleOAuthClient")
-    private OAuthClient googleOAuthClient;
-
-    @MockitoBean(name = "kakaoOAuthClient")
-    private OAuthClient kakaoOAuthClient;
-
-    @MockitoBean(name = "appleOAuthClient")
-    private OAuthClient appleOAuthClient;
+    @MockitoBean
+    private OAuthClientRegistry oauthClientRegistry;
 
     private record Session(String token, long memberId) {}
 
     private Session login(String providerId, String email, String nickname) throws Exception {
-        given(googleOAuthClient.provider()).willReturn(SocialProvider.GOOGLE);
-        given(googleOAuthClient.getUserInfo(anyString()))
+        given(oauthClientRegistry.getUserInfo(any(SocialProvider.class), anyString()))
                 .willReturn(new OAuthUserInfo(providerId, email, nickname));
         MvcResult loginResult = mockMvc.perform(post("/api/auth/social")
                         .contentType(MediaType.APPLICATION_JSON)

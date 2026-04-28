@@ -1,7 +1,7 @@
 package com.meeny.presentation.play.dto;
 
-import com.meeny.domain.play.Play;
-import com.meeny.domain.play.PlayType;
+import com.meeny.domain.activity.play.Play;
+import com.meeny.domain.activity.play.PlayType;
 
 import java.time.LocalDateTime;
 import java.util.List;

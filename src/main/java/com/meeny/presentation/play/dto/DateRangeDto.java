@@ -1,6 +1,6 @@
 package com.meeny.presentation.play.dto;
 
-import com.meeny.domain.play.DateRange;
+import com.meeny.domain.activity.play.DateRange;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;

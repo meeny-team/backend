@@ -1,8 +1,8 @@
 package com.meeny.presentation.play.dto;
 
-import com.meeny.domain.play.MemberBalance;
-import com.meeny.domain.play.PlaySettlementResult;
-import com.meeny.domain.play.Transfer;
+import com.meeny.domain.activity.pin.MemberBalance;
+import com.meeny.domain.activity.pin.PlaySettlementResult;
+import com.meeny.domain.activity.pin.Transfer;
 
 import java.util.List;
 

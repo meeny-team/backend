@@ -2,9 +2,9 @@ package com.meeny.application.crew;
 
 import com.meeny.common.exception.BusinessException;
 import com.meeny.common.exception.ErrorCode;
-import com.meeny.domain.crew.Crew;
-import com.meeny.domain.crew.CrewRepository;
-import com.meeny.domain.crew.InviteCode;
+import com.meeny.domain.activity.crew.Crew;
+import com.meeny.domain.activity.crew.CrewRepository;
+import com.meeny.domain.activity.crew.InviteCode;
 import com.meeny.presentation.crew.dto.CreateCrewRequest;
 import com.meeny.presentation.crew.dto.CrewResponse;
 import com.meeny.presentation.crew.dto.UpdateCrewRequest;

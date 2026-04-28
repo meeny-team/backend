@@ -1,6 +1,6 @@
 package com.meeny.presentation.crew.dto;
 
-import com.meeny.domain.crew.Crew;
+import com.meeny.domain.activity.crew.Crew;
 
 import java.time.LocalDateTime;
 import java.util.List;

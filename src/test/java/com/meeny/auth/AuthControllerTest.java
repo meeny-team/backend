@@ -4,9 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meeny.presentation.auth.dto.LogoutRequest;
 import com.meeny.presentation.auth.dto.RefreshRequest;
 import com.meeny.presentation.auth.dto.SocialLoginRequest;
-import com.meeny.domain.auth.OAuthClient;
 import com.meeny.domain.auth.OAuthUserInfo;
-import com.meeny.domain.member.SocialProvider;
+import com.meeny.domain.identity.SocialProvider;
+import com.meeny.infrastructure.oauth.OAuthClientRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -32,20 +33,13 @@ class AuthControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockitoBean(name = "googleOAuthClient")
-    private OAuthClient googleOAuthClient;
-
-    @MockitoBean(name = "kakaoOAuthClient")
-    private OAuthClient kakaoOAuthClient;
-
-    @MockitoBean(name = "appleOAuthClient")
-    private OAuthClient appleOAuthClient;
+    @MockitoBean
+    private OAuthClientRegistry oauthClientRegistry;
 
     @Test
     @DisplayName("구글 소셜 로그인 성공 - accessToken, refreshToken 반환")
     void socialLogin_google_success() throws Exception {
-        given(googleOAuthClient.provider()).willReturn(SocialProvider.GOOGLE);
-        given(googleOAuthClient.getUserInfo(anyString()))
+        given(oauthClientRegistry.getUserInfo(any(SocialProvider.class), anyString()))
                 .willReturn(new OAuthUserInfo("google-uid-001", "user@gmail.com", "구글유저"));
 
         SocialLoginRequest request = new SocialLoginRequest(SocialProvider.GOOGLE, "valid-google-id-token", null);
@@ -63,8 +57,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("카카오 소셜 로그인 성공 - accessToken, refreshToken 반환")
     void socialLogin_kakao_success() throws Exception {
-        given(kakaoOAuthClient.provider()).willReturn(SocialProvider.KAKAO);
-        given(kakaoOAuthClient.getUserInfo(anyString()))
+        given(oauthClientRegistry.getUserInfo(any(SocialProvider.class), anyString()))
                 .willReturn(new OAuthUserInfo("kakao-uid-001", "user@kakao.com", "카카오유저"));
 
         SocialLoginRequest request = new SocialLoginRequest(SocialProvider.KAKAO, "valid-kakao-access-token", null);
@@ -80,8 +73,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("Apple 소셜 로그인 성공 - 이메일 없어도 가입 가능")
     void socialLogin_apple_noEmail_success() throws Exception {
-        given(appleOAuthClient.provider()).willReturn(SocialProvider.APPLE);
-        given(appleOAuthClient.getUserInfo(anyString()))
+        given(oauthClientRegistry.getUserInfo(any(SocialProvider.class), anyString()))
                 .willReturn(new OAuthUserInfo("apple-uid-001", null, null));
 
         SocialLoginRequest request = new SocialLoginRequest(SocialProvider.APPLE, "valid-apple-identity-token", "애플유저");
@@ -96,8 +88,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("같은 소셜 계정으로 재로그인 - 새 토큰 반환")
     void socialLogin_existingMember_returnsNewTokens() throws Exception {
-        given(googleOAuthClient.provider()).willReturn(SocialProvider.GOOGLE);
-        given(googleOAuthClient.getUserInfo(anyString()))
+        given(oauthClientRegistry.getUserInfo(any(SocialProvider.class), anyString()))
                 .willReturn(new OAuthUserInfo("google-uid-repeat", "repeat@gmail.com", "반복유저"));
 
         SocialLoginRequest request = new SocialLoginRequest(SocialProvider.GOOGLE, "token", null);
@@ -128,8 +119,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("토큰 갱신 성공 - 새 accessToken, refreshToken 반환")
     void refresh_success() throws Exception {
-        given(googleOAuthClient.provider()).willReturn(SocialProvider.GOOGLE);
-        given(googleOAuthClient.getUserInfo(anyString()))
+        given(oauthClientRegistry.getUserInfo(any(SocialProvider.class), anyString()))
                 .willReturn(new OAuthUserInfo("google-uid-refresh", "refresh@gmail.com", "갱신유저"));
 
         MvcResult loginResult = mockMvc.perform(post("/api/auth/social")
@@ -163,8 +153,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("로그아웃 성공 - 204 No Content")
     void logout_success() throws Exception {
-        given(googleOAuthClient.provider()).willReturn(SocialProvider.GOOGLE);
-        given(googleOAuthClient.getUserInfo(anyString()))
+        given(oauthClientRegistry.getUserInfo(any(SocialProvider.class), anyString()))
                 .willReturn(new OAuthUserInfo("google-uid-logout", "logout@gmail.com", "로그아웃유저"));
 
         MvcResult loginResult = mockMvc.perform(post("/api/auth/social")

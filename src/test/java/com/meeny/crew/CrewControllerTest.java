@@ -1,9 +1,9 @@
 package com.meeny.crew;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.meeny.domain.auth.OAuthClient;
 import com.meeny.domain.auth.OAuthUserInfo;
-import com.meeny.domain.member.SocialProvider;
+import com.meeny.domain.identity.SocialProvider;
+import com.meeny.infrastructure.oauth.OAuthClientRegistry;
 import com.meeny.presentation.auth.dto.SocialLoginRequest;
 import com.meeny.presentation.crew.dto.CreateCrewRequest;
 import com.meeny.presentation.crew.dto.JoinByCodeRequest;
@@ -18,6 +18,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -33,18 +34,11 @@ class CrewControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockitoBean(name = "googleOAuthClient")
-    private OAuthClient googleOAuthClient;
-
-    @MockitoBean(name = "kakaoOAuthClient")
-    private OAuthClient kakaoOAuthClient;
-
-    @MockitoBean(name = "appleOAuthClient")
-    private OAuthClient appleOAuthClient;
+    @MockitoBean
+    private OAuthClientRegistry oauthClientRegistry;
 
     private String loginAndGetToken(String providerId, String email, String nickname) throws Exception {
-        given(googleOAuthClient.provider()).willReturn(SocialProvider.GOOGLE);
-        given(googleOAuthClient.getUserInfo(anyString()))
+        given(oauthClientRegistry.getUserInfo(any(SocialProvider.class), anyString()))
                 .willReturn(new OAuthUserInfo(providerId, email, nickname));
 
         MvcResult result = mockMvc.perform(post("/api/auth/social")

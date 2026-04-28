@@ -1,6 +1,6 @@
 package com.meeny.presentation.pin.dto;
 
-import com.meeny.domain.pin.PinCategory;
+import com.meeny.domain.activity.pin.PinCategory;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
