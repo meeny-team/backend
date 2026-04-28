@@ -1,9 +1,11 @@
 package com.meeny.presentation.play;
 
 import com.meeny.application.play.PlayService;
+import com.meeny.application.play.PlaySettlementService;
 import com.meeny.common.response.ApiResponse;
 import com.meeny.presentation.play.dto.CreatePlayRequest;
 import com.meeny.presentation.play.dto.PlayResponse;
+import com.meeny.presentation.play.dto.PlaySettlementResponse;
 import com.meeny.presentation.play.dto.UpdatePlayRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ import java.util.List;
 public class PlayController {
 
     private final PlayService playService;
+    private final PlaySettlementService playSettlementService;
 
     @PostMapping("/api/plays")
     public ResponseEntity<ApiResponse<PlayResponse>> create(
@@ -56,5 +59,12 @@ public class PlayController {
             @PathVariable Long playId) {
         playService.delete(playId, memberId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/api/plays/{playId}/settlement")
+    public ResponseEntity<ApiResponse<PlaySettlementResponse>> getSettlement(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long playId) {
+        return ResponseEntity.ok(ApiResponse.ok(playSettlementService.calculate(playId, memberId)));
     }
 }
