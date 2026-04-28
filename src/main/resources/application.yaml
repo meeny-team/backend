@@ -28,3 +28,9 @@ jwt:
 oauth:
   apple:
     client-id: com.meeny.app  # Apple Developer에서 발급한 Bundle ID로 교체
+
+# 로컬 개발 검증용 dev-login 엔드포인트 (POST /api/auth/dev/login).
+# 운영 배포 시 반드시 false로 두어야 합니다 (환경변수 AUTH_DEV-LOGIN_ENABLED=false 또는 prod 프로필).
+auth:
+  dev-login:
+    enabled: ${AUTH_DEV_LOGIN_ENABLED:true}
