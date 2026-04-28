@@ -1,0 +1,60 @@
+package com.meeny.presentation.play;
+
+import com.meeny.application.play.PlayService;
+import com.meeny.common.response.ApiResponse;
+import com.meeny.presentation.play.dto.CreatePlayRequest;
+import com.meeny.presentation.play.dto.PlayResponse;
+import com.meeny.presentation.play.dto.UpdatePlayRequest;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequiredArgsConstructor
+public class PlayController {
+
+    private final PlayService playService;
+
+    @PostMapping("/api/plays")
+    public ResponseEntity<ApiResponse<PlayResponse>> create(
+            @AuthenticationPrincipal Long memberId,
+            @Valid @RequestBody CreatePlayRequest request) {
+        PlayResponse play = playService.create(memberId, request);
+        return ResponseEntity.ok(ApiResponse.ok(play, "플레이가 생성되었습니다."));
+    }
+
+    @GetMapping("/api/crews/{crewId}/plays")
+    public ResponseEntity<ApiResponse<List<PlayResponse>>> getByCrew(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long crewId) {
+        return ResponseEntity.ok(ApiResponse.ok(playService.getPlaysByCrew(crewId, memberId)));
+    }
+
+    @GetMapping("/api/plays/{playId}")
+    public ResponseEntity<ApiResponse<PlayResponse>> getDetail(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long playId) {
+        return ResponseEntity.ok(ApiResponse.ok(playService.getPlay(playId, memberId)));
+    }
+
+    @PatchMapping("/api/plays/{playId}")
+    public ResponseEntity<ApiResponse<PlayResponse>> update(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long playId,
+            @Valid @RequestBody UpdatePlayRequest request) {
+        PlayResponse play = playService.update(playId, memberId, request);
+        return ResponseEntity.ok(ApiResponse.ok(play, "플레이가 수정되었습니다."));
+    }
+
+    @DeleteMapping("/api/plays/{playId}")
+    public ResponseEntity<Void> delete(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long playId) {
+        playService.delete(playId, memberId);
+        return ResponseEntity.noContent().build();
+    }
+}

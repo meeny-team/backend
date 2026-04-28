@@ -13,7 +13,11 @@ public enum ErrorCode {
     NOT_CREW_MEMBER(HttpStatus.FORBIDDEN, "크루 멤버만 접근할 수 있습니다."),
     NOT_CREW_OWNER(HttpStatus.FORBIDDEN, "크루 생성자만 수정할 수 있습니다."),
     ALREADY_JOINED_CREW(HttpStatus.BAD_REQUEST, "이미 참여 중인 크루입니다."),
-    INVALID_INVITE_CODE(HttpStatus.BAD_REQUEST, "유효하지 않은 초대 코드입니다.");
+    INVALID_INVITE_CODE(HttpStatus.BAD_REQUEST, "유효하지 않은 초대 코드입니다."),
+    PLAY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 플레이입니다."),
+    NOT_PLAY_OWNER(HttpStatus.FORBIDDEN, "플레이 작성자만 수정/삭제할 수 있습니다."),
+    INVALID_PLAY_MEMBERS(HttpStatus.BAD_REQUEST, "플레이 멤버는 크루 멤버여야 합니다."),
+    INVALID_DATE_RANGE(HttpStatus.BAD_REQUEST, "종료일은 시작일 이후여야 합니다.");
 
     private final HttpStatus status;
     private final String message;
