@@ -1,5 +1,6 @@
 package com.meeny.application.auth;
 
+import com.meeny.presentation.auth.dto.DevLoginRequest;
 import com.meeny.presentation.auth.dto.SocialLoginRequest;
 import com.meeny.presentation.auth.dto.TokenResponse;
 import com.meeny.domain.auth.AuthTokens;
@@ -54,6 +55,16 @@ public class AuthService {
     @Transactional
     public void logout(String refreshTokenValue) {
         refreshTokenRepository.deleteByToken(refreshTokenValue);
+    }
+
+    @Transactional
+    public TokenResponse devLogin(DevLoginRequest request) {
+        Member member = memberRepository
+                .findByProviderAndProviderId(request.provider(), request.providerId())
+                .orElseGet(() -> memberRepository.save(
+                        Member.create(request.provider(), request.providerId(), request.email(), request.nickname())
+                ));
+        return issueTokens(member.getId());
     }
 
     private Member registerNewMember(SocialLoginRequest request, OAuthUserInfo userInfo) {
