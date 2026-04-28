@@ -1,12 +1,12 @@
 package com.meeny.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.meeny.auth.application.dto.LogoutRequest;
-import com.meeny.auth.application.dto.RefreshRequest;
-import com.meeny.auth.application.dto.SocialLoginRequest;
-import com.meeny.auth.domain.OAuthClient;
-import com.meeny.auth.domain.OAuthUserInfo;
-import com.meeny.member.domain.SocialProvider;
+import com.meeny.presentation.auth.dto.LogoutRequest;
+import com.meeny.presentation.auth.dto.RefreshRequest;
+import com.meeny.presentation.auth.dto.SocialLoginRequest;
+import com.meeny.domain.auth.OAuthClient;
+import com.meeny.domain.auth.OAuthUserInfo;
+import com.meeny.domain.member.SocialProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,8 +16,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-
-import java.util.List;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
