@@ -5,19 +5,27 @@ Meeny는 Spring Boot 3, Java 21, Gradle 기반의 백엔드 프로젝트입니�
 이 프로젝트는 DDD 스타일 아키텍처를 지향하며, React Native 클라이언트를 위한 API를 제공합니다.
 
 ## 아키텍처 원칙
-도메인 중심으로 패키지를 구성합니다.
+계층(layer) 중심으로 패키지를 구성합니다.
+
+최상위 패키지(`com.meeny`) 아래에 다음 계층 패키지를 둡니다:
+- presentation : Controller, Request/Response DTO
+- application : Application Service (유스케이스), Application 단의 헬퍼
+- domain : Entity, Value Object, 도메인 인터페이스(Repository 인터페이스, 도메인 서비스), 도메인 행위
+- infrastructure : Repository 구현(JPA), 외부 시스템 어댑터(OAuth 클라이언트 등)
+- security : 인증 필터, JWT 관련 컴포넌트
+- config : Spring Configuration 클래스
+- common : 공통 예외, 공통 응답 포맷 등
+
+각 계층 안에서는 도메인(`auth`, `member`, ...)별로 하위 패키지를 나눕니다.
 
 예시:
-- member
-- auth
-- order
-- payment
+- presentation/auth, presentation/member
+- application/auth, application/member
+- domain/auth, domain/member
+- infrastructure/auth, infrastructure/member
 
-각 도메인은 다음 계층으로 구성할 수 있습니다:
-- presentation
-- application
-- domain
-- infrastructure
+새 도메인을 추가할 때는 각 계층 아래에 같은 이름의 하위 패키지를 추가합니다.
+도메인 중심 구조(`auth/presentation`, `auth/application` ...)로 재배치하지 않습니다.
 
 ## 서비스 클래스 원칙
 Application Service는 유스케이스 흐름이 쉽게 읽혀야 합니다.
