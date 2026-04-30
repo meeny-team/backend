@@ -25,6 +25,7 @@ public class PlayService {
     private final PlayRepository playRepository;
     private final CrewRepository crewRepository;
 
+    // Play 생성: 크루 멤버 검증 후, 참여자가 모두 크루에 속하는지 확인하고 저장 (생성자는 자동 포함)
     @Transactional
     public PlayResponse create(Long creatorId, CreatePlayRequest request) {
         Crew crew = findCrew(request.crewId());
@@ -48,6 +49,7 @@ public class PlayService {
         return PlayResponse.from(playRepository.save(play));
     }
 
+    // 특정 크루의 Play 목록 조회 (크루 멤버에게만 노출)
     public List<PlayResponse> getPlaysByCrew(Long crewId, Long memberId) {
         Crew crew = findCrew(crewId);
         crew.verifyMember(memberId);
@@ -56,6 +58,7 @@ public class PlayService {
                 .toList();
     }
 
+    // Play 단건 조회 (크루 멤버에게만 노출)
     public PlayResponse getPlay(Long playId, Long memberId) {
         Play play = findPlay(playId);
         Crew crew = findCrew(play.getCrewId());
@@ -63,6 +66,7 @@ public class PlayService {
         return PlayResponse.from(play);
     }
 
+    // Play 수정: 멤버 변경 시 생성자는 항상 포함되며, 새 멤버가 크루에 속하는지 검증
     @Transactional
     public PlayResponse update(Long playId, Long memberId, UpdatePlayRequest request) {
         Play play = findPlay(playId);
@@ -87,6 +91,7 @@ public class PlayService {
         return PlayResponse.from(play);
     }
 
+    // Play 삭제: 생성자 본인만 가능
     @Transactional
     public void delete(Long playId, Long memberId) {
         Play play = findPlay(playId);

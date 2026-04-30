@@ -44,3 +44,7 @@ application-local.yml
 
 # Optional: VS Code
 .vscode/
+
+# Claude Code
+CLAUDE.md
+.claude/

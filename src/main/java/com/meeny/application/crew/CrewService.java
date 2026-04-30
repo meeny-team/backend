@@ -23,6 +23,7 @@ public class CrewService {
 
     private final CrewRepository crewRepository;
 
+    // 크루 생성: 중복 없는 초대 코드를 발급하고 크루를 저장
     @Transactional
     public CrewResponse create(Long creatorId, CreateCrewRequest request) {
         InviteCode inviteCode = generateUniqueInviteCode();
@@ -30,18 +31,21 @@ public class CrewService {
         return CrewResponse.from(crewRepository.save(crew));
     }
 
+    // 내가 속한 크루 목록 조회
     public List<CrewResponse> getMyCrews(Long memberId) {
         return crewRepository.findAllByMemberId(memberId).stream()
                 .map(CrewResponse::from)
                 .toList();
     }
 
+    // 크루 상세 조회: 멤버인지 검증한 뒤 반환
     public CrewResponse getCrewDetail(Long crewId, Long memberId) {
         Crew crew = findCrew(crewId);
         crew.verifyMember(memberId);
         return CrewResponse.from(crew);
     }
 
+    // 초대 코드로 크루 가입
     @Transactional
     public CrewResponse joinByCode(Long memberId, String inviteCode) {
         Crew crew = crewRepository.findByInviteCode(inviteCode)
@@ -50,12 +54,14 @@ public class CrewService {
         return CrewResponse.from(crew);
     }
 
+    // 크루 탈퇴
     @Transactional
     public void leave(Long crewId, Long memberId) {
         Crew crew = findCrew(crewId);
         crew.leave(memberId);
     }
 
+    // 크루 정보 수정 (권한 검증은 도메인에서 수행)
     @Transactional
     public CrewResponse update(Long crewId, Long memberId, UpdateCrewRequest request) {
         Crew crew = findCrew(crewId);

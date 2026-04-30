@@ -25,6 +25,7 @@ public class PlaySettlementService {
     private final PinRepository pinRepository;
     private final CrewRepository crewRepository;
 
+    // Play 단위 정산 계산: 모든 핀의 결제/분배를 합산해 멤버별 잔액과 송금 내역을 산출
     public PlaySettlementResponse calculate(Long playId, Long memberId) {
         Play play = playRepository.findById(playId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PLAY_NOT_FOUND));
