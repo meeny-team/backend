@@ -1,6 +1,6 @@
 package com.meeny.presentation.auth.dto;
 
-import com.meeny.domain.member.SocialProvider;
+import com.meeny.domain.identity.SocialProvider;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 

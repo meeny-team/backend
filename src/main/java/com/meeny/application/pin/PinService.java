@@ -28,6 +28,7 @@ public class PinService {
     private final PlayRepository playRepository;
     private final CrewRepository crewRepository;
 
+    // 핀 생성: 작성자가 Play 멤버인지 검증한 뒤 정산 정보까지 포함해 저장
     @Transactional
     public PinResponse create(Long authorId, CreatePinRequest request) {
         Play play = findPlay(request.playId());
@@ -51,6 +52,7 @@ public class PinService {
         return PinResponse.from(pinRepository.save(pin));
     }
 
+    // 특정 Play에 속한 핀 목록 조회 (크루 멤버에게만 노출)
     public List<PinResponse> getPinsByPlay(Long playId, Long memberId) {
         Play play = findPlay(playId);
         verifyPlayCrewMember(play, memberId);
@@ -59,6 +61,7 @@ public class PinService {
                 .toList();
     }
 
+    // 핀 단건 조회 (크루 멤버에게만 노출)
     public PinResponse getPin(Long pinId, Long memberId) {
         Pin pin = findPin(pinId);
         Play play = findPlay(pin.getPlayId());
@@ -66,6 +69,7 @@ public class PinService {
         return PinResponse.from(pin);
     }
 
+    // 핀 수정: 작성자 권한 검증과 정산/분배 갱신은 도메인에서 수행
     @Transactional
     public PinResponse update(Long pinId, Long memberId, UpdatePinRequest request) {
         Pin pin = findPin(pinId);
@@ -90,6 +94,7 @@ public class PinService {
         return PinResponse.from(pin);
     }
 
+    // 핀 삭제: 작성자 본인만 가능
     @Transactional
     public void delete(Long pinId, Long memberId) {
         Pin pin = findPin(pinId);

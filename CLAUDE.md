@@ -16,16 +16,42 @@ Meeny는 Spring Boot 3, Java 21, Gradle 기반의 백엔드 프로젝트입니�
 - config : Spring Configuration 클래스
 - common : 공통 예외, 공통 응답 포맷 등
 
-각 계층 안에서는 도메인(`auth`, `member`, ...)별로 하위 패키지를 나눕니다.
+## 도메인 패키지 구성
+도메인 계층은 바운디드 컨텍스트(bounded context) 단위로 묶고, 그 안에서 세부 도메인으로 나눕니다.
 
-예시:
-- presentation/auth, presentation/member
-- application/auth, application/member
-- domain/auth, domain/member
-- infrastructure/auth, infrastructure/member
+현재 컨텍스트 구성:
+- `domain/activity` : 활동 관련 컨텍스트 — 하위에 `crew`, `play`, `pin`
+- `domain/auth` : 인증/토큰 관련 컨텍스트 — RefreshToken, OAuthClient 등
+- `domain/identity` : 사용자 정체성 컨텍스트 — Member, SocialProvider 등
 
-새 도메인을 추가할 때는 각 계층 아래에 같은 이름의 하위 패키지를 추가합니다.
+새 도메인을 추가할 때:
+- 기존 컨텍스트에 속하면 해당 컨텍스트 하위 패키지로 추가합니다 (예: `domain/activity/<new>`)
+- 새로운 컨텍스트라면 `domain/<context>` 패키지를 만듭니다
+
+각 컨텍스트는 자체 Repository 인터페이스와 도메인 포트(예: `OAuthClient`)를 노출하며, Application Service는 필요한 Repository를 개별적으로 주입받아 사용합니다.
+
+## presentation / application 패키지 구성
+presentation, application 계층은 도메인(`auth`, `crew`, `member`, `pin`, `play`, ...) 단위로 하위 패키지를 나눕니다.
+
+- presentation/<domain> : Controller
+- presentation/<domain>/dto : Request / Response DTO
+- application/<domain> : Application Service
+
 도메인 중심 구조(`auth/presentation`, `auth/application` ...)로 재배치하지 않습니다.
+어디까지나 계층이 최상위, 도메인은 하위입니다.
+
+## infrastructure 패키지 구성
+infrastructure 계층은 도메인 이름이 아니라 **기술/어댑터 단위**로 나눕니다.
+
+현재 구성:
+- `infrastructure/postgres` : JPA 기반 Repository 구현
+  - `infrastructure/postgres/repository` : 도메인 Repository 인터페이스의 JPA 구현체들
+- `infrastructure/oauth` : OAuth 외부 시스템 어댑터
+  - `infrastructure/oauth/client` : 프로바이더별 OAuth 클라이언트 (Kakao, Google, Apple)
+  - `infrastructure/oauth/OAuthClientRegistry` : `SocialProvider`로 클라이언트를 조회하는 라우터
+
+새 외부 어댑터를 추가할 때는 `infrastructure/<기술-또는-시스템>` 형태로 패키지를 만듭니다
+(`infrastructure/auth`, `infrastructure/member`처럼 도메인 이름으로 만들지 않습니다).
 
 ## 서비스 클래스 원칙
 Application Service는 유스케이스 흐름이 쉽게 읽혀야 합니다.

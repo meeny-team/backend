@@ -26,6 +26,7 @@ public class AuthService {
     private final TokenIssuer tokenIssuer;
     private final OAuthClientRegistry oauthClientRegistry;
 
+    // 소셜 로그인: OAuth 토큰으로 사용자 정보를 받아오고, 없으면 신규 가입 후 토큰 발급
     @Transactional
     public TokenResponse socialLogin(SocialLoginRequest request) {
         OAuthUserInfo userInfo = oauthClientRegistry.getUserInfo(request.provider(), request.token());
@@ -37,6 +38,7 @@ public class AuthService {
         return issueTokens(member.getId());
     }
 
+    // 토큰 재발급: 리프레시 토큰을 검증하고 기존 토큰을 폐기한 뒤 새 토큰 쌍 발급
     @Transactional
     public TokenResponse refresh(String refreshTokenValue) {
         RefreshToken refreshToken = refreshTokenRepository.findByToken(refreshTokenValue)
@@ -48,11 +50,13 @@ public class AuthService {
         return issueTokens(memberId);
     }
 
+    // 로그아웃: 리프레시 토큰을 삭제해 재발급을 막음
     @Transactional
     public void logout(String refreshTokenValue) {
         refreshTokenRepository.deleteByToken(refreshTokenValue);
     }
 
+    // 개발용 로그인: OAuth 검증 없이 provider/providerId만으로 로그인 또는 가입
     @Transactional
     public TokenResponse devLogin(DevLoginRequest request) {
         Member member = memberRepository
