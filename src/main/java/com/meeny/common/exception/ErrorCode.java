@@ -14,6 +14,7 @@ public enum ErrorCode {
     NOT_CREW_OWNER(HttpStatus.FORBIDDEN, "크루 생성자만 수정할 수 있습니다."),
     ALREADY_JOINED_CREW(HttpStatus.BAD_REQUEST, "이미 참여 중인 크루입니다."),
     INVALID_INVITE_CODE(HttpStatus.BAD_REQUEST, "유효하지 않은 초대 코드입니다."),
+    INVITE_CODE_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "초대 코드 생성에 실패했습니다."),
     PLAY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 플레이입니다."),
     NOT_PLAY_OWNER(HttpStatus.FORBIDDEN, "플레이 작성자만 수정/삭제할 수 있습니다."),
     NOT_PLAY_MEMBER(HttpStatus.FORBIDDEN, "플레이 멤버만 접근할 수 있습니다."),

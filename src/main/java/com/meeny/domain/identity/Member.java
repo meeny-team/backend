@@ -37,6 +37,7 @@ public class Member {
     @Column(length = 100)
     private String bio;
 
+    // 회원 생성: 소셜 식별자로 가입하며, 닉네임이 비어있으면 기본값 "사용자"로 채움
     public static Member create(SocialProvider provider, String providerId, String email, String nickname) {
         Member member = new Member();
         member.provider = provider;
@@ -46,6 +47,7 @@ public class Member {
         return member;
     }
 
+    // 프로필 부분 수정: null이거나 빈 문자열인 필드는 변경하지 않음 (이미지/소개는 빈 문자열을 null로 정규화)
     public void updateProfile(String nickname, String profileImage, String bio) {
         if (nickname != null && !nickname.isBlank()) {
             this.nickname = nickname;

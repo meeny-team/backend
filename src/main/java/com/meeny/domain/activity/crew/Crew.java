@@ -89,6 +89,13 @@ public class Crew {
         }
     }
 
+    // 주어진 멤버들이 모두 크루에 속하는지 검증 (Play 멤버 구성 시 사용)
+    public void verifyContainsMembers(Set<Long> memberIds) {
+        if (!this.memberIds.containsAll(memberIds)) {
+            throw new BusinessException(ErrorCode.INVALID_PLAY_MEMBERS);
+        }
+    }
+
     public void verifyOwner(Long memberId) {
         if (!createdBy.equals(memberId)) {
             throw new BusinessException(ErrorCode.NOT_CREW_OWNER);
