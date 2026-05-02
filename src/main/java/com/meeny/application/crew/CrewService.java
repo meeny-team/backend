@@ -5,6 +5,11 @@ import com.meeny.common.exception.ErrorCode;
 import com.meeny.domain.activity.crew.Crew;
 import com.meeny.domain.activity.crew.CrewRepository;
 import com.meeny.domain.activity.crew.InviteCode;
+import com.meeny.domain.activity.pin.Pin;
+import com.meeny.domain.activity.pin.PinRepository;
+import com.meeny.domain.activity.pin.PlaySettlementResult;
+import com.meeny.domain.activity.play.Play;
+import com.meeny.domain.activity.play.PlayRepository;
 import com.meeny.presentation.crew.dto.CreateCrewRequest;
 import com.meeny.presentation.crew.dto.CrewResponse;
 import com.meeny.presentation.crew.dto.UpdateCrewRequest;
@@ -22,6 +27,8 @@ public class CrewService {
     private static final int MAX_INVITE_CODE_RETRIES = 5;
 
     private final CrewRepository crewRepository;
+    private final PlayRepository playRepository;
+    private final PinRepository pinRepository;
 
     // 크루 생성: 중복 없는 초대 코드를 발급하고 크루를 저장
     @Transactional
@@ -54,11 +61,21 @@ public class CrewService {
         return CrewResponse.from(crew);
     }
 
-    // 크루 탈퇴
+    // 크루 탈퇴: 크루 안 어떤 Play에서도 미정산 잔액(받을/낼 돈)이 남아있으면 탈퇴 차단
     @Transactional
     public void leave(Long crewId, Long memberId) {
         Crew crew = findCrew(crewId);
+        verifyNoOutstandingBalance(crewId, memberId);
         crew.leave(memberId);
+    }
+
+    private void verifyNoOutstandingBalance(Long crewId, Long memberId) {
+        for (Play play : playRepository.findAllByCrewId(crewId)) {
+            List<Pin> pins = pinRepository.findAllByPlayId(play.getId());
+            if (PlaySettlementResult.memberBalance(memberId, pins) != 0L) {
+                throw new BusinessException(ErrorCode.OUTSTANDING_SETTLEMENT_BALANCE);
+            }
+        }
     }
 
     // 크루 정보 수정 (권한 검증은 도메인에서 수행)

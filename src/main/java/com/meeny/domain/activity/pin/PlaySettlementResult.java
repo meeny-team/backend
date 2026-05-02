@@ -3,6 +3,7 @@ package com.meeny.domain.activity.pin;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
@@ -14,10 +15,20 @@ public record PlaySettlementResult(
         List<Transfer> transfers
 ) {
 
+    // Play의 현재 멤버뿐 아니라 과거 핀에 결제자/분담자로 등장한 모든 멤버를 합산 대상에 포함해야
+    // 탈퇴/제외된 멤버의 채권·채무가 사라지지 않음 (정산 표시는 그대로 N명 기준).
     public static PlaySettlementResult of(Set<Long> memberIds, List<Pin> pins) {
+        Set<Long> allMemberIds = new HashSet<>(memberIds);
+        for (Pin pin : pins) {
+            allMemberIds.add(pin.getSettlement().getPaidBy());
+            for (Split split : pin.getSplits()) {
+                allMemberIds.add(split.getUserId());
+            }
+        }
+
         Map<Long, Long> paid = new HashMap<>();
         Map<Long, Long> share = new HashMap<>();
-        for (Long mid : memberIds) {
+        for (Long mid : allMemberIds) {
             paid.put(mid, 0L);
             share.put(mid, 0L);
         }
@@ -31,16 +42,33 @@ public record PlaySettlementResult(
             }
         }
 
-        List<MemberBalance> balances = memberIds.stream()
+        List<MemberBalance> balances = allMemberIds.stream()
                 .sorted()
                 .map(mid -> {
-                    long p = paid.getOrDefault(mid, 0L);
-                    long s = share.getOrDefault(mid, 0L);
+                    long p = paid.get(mid);
+                    long s = share.get(mid);
                     return new MemberBalance(mid, p, s, p - s);
                 })
                 .toList();
 
         return new PlaySettlementResult(total, balances, calculateTransfers(balances));
+    }
+
+    // 멤버 한 명의 미정산 잔액 (양수=받을 돈, 음수=낼 돈, 0=정산 완료). Crew 탈퇴/Play 제외 차단 가드에 사용.
+    public static long memberBalance(Long memberId, List<Pin> pins) {
+        long paid = 0L;
+        long share = 0L;
+        for (Pin pin : pins) {
+            if (pin.getSettlement().getPaidBy().equals(memberId)) {
+                paid += pin.getAmount();
+            }
+            for (Split split : pin.getSplits()) {
+                if (split.getUserId().equals(memberId)) {
+                    share += split.getAmount();
+                }
+            }
+        }
+        return paid - share;
     }
 
     private static List<Transfer> calculateTransfers(List<MemberBalance> balances) {

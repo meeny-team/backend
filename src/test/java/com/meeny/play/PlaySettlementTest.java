@@ -245,4 +245,53 @@ class PlaySettlementTest {
                 .andExpect(jsonPath("$.code").value("PLAY_NOT_FOUND"));
     }
 
+    @Test
+    @DisplayName("회원 탈퇴 후에도 정산 결과에서 채권/채무자로 표시 (자동 재분배 X)")
+    void settlement_includesWithdrawnMember() throws Exception {
+        Session a = login("g-wd-a", "wda@gmail.com", "A");
+        Session b = login("g-wd-b", "wdb@gmail.com", "B");
+        CrewCtx crew = createCrew(a.token(), "탈퇴정산크루");
+        joinCrew(b.token(), crew.inviteCode());
+        long playId = createPlay(a.token(), crew.crewId(), Set.of(b.memberId()));
+
+        createPin(a.token(), playId, 10000L, a.memberId(), List.of(
+                new SplitDto(a.memberId(), 5000L),
+                new SplitDto(b.memberId(), 5000L)
+        ));
+
+        // B 회원 탈퇴 (소프트 딜리트). 크루 탈퇴 가드와 달리 회원 탈퇴는 잔액 검사를 하지 않음
+        mockMvc.perform(delete("/api/users/me").header("Authorization", "Bearer " + b.token()))
+                .andExpect(status().isNoContent());
+
+        // A가 정산 조회 시 B(탈퇴자)도 그대로 채무자로 노출되어야 함
+        mockMvc.perform(get("/api/plays/" + playId + "/settlement")
+                        .header("Authorization", "Bearer " + a.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalAmount").value(10000))
+                .andExpect(jsonPath("$.data.transfers.length()").value(1))
+                .andExpect(jsonPath("$.data.transfers[0].fromMemberId").value(b.memberId()))
+                .andExpect(jsonPath("$.data.transfers[0].toMemberId").value(a.memberId()))
+                .andExpect(jsonPath("$.data.transfers[0].amount").value(5000));
+    }
+
+    @Test
+    @DisplayName("미정산 잔액 있으면 크루 탈퇴 차단 - 409 OUTSTANDING_SETTLEMENT_BALANCE")
+    void leaveCrew_blockedWhenOutstandingBalance() throws Exception {
+        Session a = login("g-lb-a", "lba@gmail.com", "A");
+        Session b = login("g-lb-b", "lbb@gmail.com", "B");
+        CrewCtx crew = createCrew(a.token(), "탈퇴차단크루");
+        joinCrew(b.token(), crew.inviteCode());
+        long playId = createPlay(a.token(), crew.crewId(), Set.of(b.memberId()));
+
+        createPin(a.token(), playId, 10000L, a.memberId(), List.of(
+                new SplitDto(a.memberId(), 5000L),
+                new SplitDto(b.memberId(), 5000L)
+        ));
+
+        mockMvc.perform(delete("/api/crews/" + crew.crewId() + "/me")
+                        .header("Authorization", "Bearer " + b.token()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("OUTSTANDING_SETTLEMENT_BALANCE"));
+    }
+
 }

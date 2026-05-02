@@ -130,4 +130,29 @@ class MemberControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"));
     }
+
+    @Test
+    @DisplayName("탈퇴 후 같은 소셜 계정으로 재로그인 - 같은 memberId로 재활성화")
+    void withdraw_thenRelogin_reactivatesSameMember() throws Exception {
+        String firstToken = loginAndGetAccessToken("google-uid-react", "react@gmail.com", "원래유저");
+        long originalId = objectMapper.readTree(mockMvc.perform(get("/api/users/me")
+                        .header("Authorization", "Bearer " + firstToken))
+                .andReturn().getResponse().getContentAsString())
+                .at("/data/id").asLong();
+
+        mockMvc.perform(delete("/api/users/me")
+                        .header("Authorization", "Bearer " + firstToken))
+                .andExpect(status().isNoContent());
+
+        // 같은 provider+providerId로 재로그인하면 새 계정이 아니라 같은 row가 부활해야 함
+        String secondToken = loginAndGetAccessToken("google-uid-react", "react@gmail.com", "복귀유저");
+        long reactivatedId = objectMapper.readTree(mockMvc.perform(get("/api/users/me")
+                        .header("Authorization", "Bearer " + secondToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.nickname").value("복귀유저"))
+                .andReturn().getResponse().getContentAsString())
+                .at("/data/id").asLong();
+
+        org.junit.jupiter.api.Assertions.assertEquals(originalId, reactivatedId);
+    }
 }

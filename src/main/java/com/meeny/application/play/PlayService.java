@@ -4,6 +4,9 @@ import com.meeny.common.exception.BusinessException;
 import com.meeny.common.exception.ErrorCode;
 import com.meeny.domain.activity.crew.Crew;
 import com.meeny.domain.activity.crew.CrewRepository;
+import com.meeny.domain.activity.pin.Pin;
+import com.meeny.domain.activity.pin.PinRepository;
+import com.meeny.domain.activity.pin.PlaySettlementResult;
 import com.meeny.domain.activity.play.Play;
 import com.meeny.domain.activity.play.PlayRepository;
 import com.meeny.presentation.play.dto.CreatePlayRequest;
@@ -24,6 +27,7 @@ public class PlayService {
 
     private final PlayRepository playRepository;
     private final CrewRepository crewRepository;
+    private final PinRepository pinRepository;
 
     // Play 생성: 크루 멤버 검증 후, 참여자가 모두 크루에 속하는지 확인하고 저장 (생성자는 자동 포함)
     @Transactional
@@ -66,7 +70,7 @@ public class PlayService {
         return PlayResponse.from(play);
     }
 
-    // Play 수정: 멤버 변경 시 생성자는 항상 포함되며, 새 멤버가 크루에 속하는지 검증
+    // Play 수정: 멤버 변경 시 생성자는 항상 포함되며, 새 멤버가 크루에 속하는지 검증; 정산 잔액이 남은 멤버는 제거 차단
     @Transactional
     public PlayResponse update(Long playId, Long memberId, UpdatePlayRequest request) {
         Play play = findPlay(playId);
@@ -76,6 +80,7 @@ public class PlayService {
         if (updatedMembers != null) {
             updatedMembers.add(play.getCreatedBy());
             crew.verifyContainsMembers(updatedMembers);
+            verifyRemovedMembersHaveZeroBalance(play, updatedMembers);
         }
 
         play.updateBy(
@@ -107,5 +112,18 @@ public class PlayService {
     private Crew findCrew(Long crewId) {
         return crewRepository.findById(crewId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CREW_NOT_FOUND));
+    }
+
+    private void verifyRemovedMembersHaveZeroBalance(Play play, Set<Long> updatedMembers) {
+        Set<Long> removed = new HashSet<>(play.getMemberIds());
+        removed.removeAll(updatedMembers);
+        if (removed.isEmpty()) return;
+
+        List<Pin> pins = pinRepository.findAllByPlayId(play.getId());
+        for (Long removedId : removed) {
+            if (PlaySettlementResult.memberBalance(removedId, pins) != 0L) {
+                throw new BusinessException(ErrorCode.OUTSTANDING_SETTLEMENT_BALANCE);
+            }
+        }
     }
 }
