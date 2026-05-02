@@ -67,4 +67,11 @@ public class PlayController {
             @PathVariable Long playId) {
         return ResponseEntity.ok(ApiResponse.ok(playSettlementService.calculate(playId, memberId)));
     }
+
+    @PostMapping("/api/plays/{playId}/settlement/close")
+    public ResponseEntity<ApiResponse<PlaySettlementResponse>> closeSettlement(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long playId) {
+        return ResponseEntity.ok(ApiResponse.ok(playSettlementService.close(playId, memberId), "정산이 마감되었습니다."));
+    }
 }

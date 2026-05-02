@@ -70,10 +70,11 @@ public class PlayService {
         return PlayResponse.from(play);
     }
 
-    // Play 수정: 멤버 변경 시 생성자는 항상 포함되며, 새 멤버가 크루에 속하는지 검증; 정산 잔액이 남은 멤버는 제거 차단
+    // Play 수정: 멤버 변경 시 생성자는 항상 포함되며, 새 멤버가 크루에 속하는지 검증; 정산 잔액이 남은 멤버는 제거 차단; 마감된 Play는 수정 불가
     @Transactional
     public PlayResponse update(Long playId, Long memberId, UpdatePlayRequest request) {
         Play play = findPlay(playId);
+        play.verifyMutable();
         Crew crew = findCrew(play.getCrewId());
 
         Set<Long> updatedMembers = request.memberIds() == null ? null : new HashSet<>(request.memberIds());

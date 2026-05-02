@@ -44,6 +44,9 @@ public class Play {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "settled_at")
+    private LocalDateTime settledAt;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "play_members", joinColumns = @JoinColumn(name = "play_id"))
     @Column(name = "member_id", nullable = false)
@@ -116,6 +119,26 @@ public class Play {
     public void verifyAuthor(Long memberId) {
         if (!createdBy.equals(memberId)) {
             throw new BusinessException(ErrorCode.NOT_PLAY_OWNER);
+        }
+    }
+
+    public boolean isSettled() {
+        return settledAt != null;
+    }
+
+    // 정산 마감: 작성자만 호출, 모든 잔액이 0인지 호출 측에서 보장한 뒤 시점만 기록
+    public void close(Long memberId) {
+        verifyAuthor(memberId);
+        if (settledAt != null) {
+            throw new BusinessException(ErrorCode.PLAY_ALREADY_SETTLED);
+        }
+        this.settledAt = LocalDateTime.now();
+    }
+
+    // 마감된 Play의 어떤 변경(핀/멤버)도 차단; mutation 진입점에서 가드로 호출
+    public void verifyMutable() {
+        if (settledAt != null) {
+            throw new BusinessException(ErrorCode.PLAY_ALREADY_SETTLED);
         }
     }
 }
