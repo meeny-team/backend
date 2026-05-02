@@ -26,13 +26,19 @@ public class AuthService {
     private final TokenIssuer tokenIssuer;
     private final OAuthClientRegistry oauthClientRegistry;
 
-    // 소셜 로그인: OAuth 토큰으로 사용자 정보를 받아오고, 없으면 신규 가입 후 토큰 발급
+    // 소셜 로그인: OAuth 토큰으로 사용자 정보를 받아오고, 없으면 신규 가입; 탈퇴 회원이면 같은 row를 재활성화 (provider+providerId 유니크 제약 우회)
     @Transactional
     public TokenResponse socialLogin(SocialLoginRequest request) {
         OAuthUserInfo userInfo = oauthClientRegistry.getUserInfo(request.provider(), request.token());
 
         Member member = memberRepository
                 .findByProviderAndProviderId(request.provider(), userInfo.providerId())
+                .map(existing -> {
+                    if (existing.isDeleted()) {
+                        existing.reactivate(userInfo.email(), resolveNickname(request, userInfo));
+                    }
+                    return existing;
+                })
                 .orElseGet(() -> registerNewMember(request, userInfo));
 
         return issueTokens(member.getId());
@@ -56,11 +62,17 @@ public class AuthService {
         refreshTokenRepository.deleteByToken(refreshTokenValue);
     }
 
-    // 개발용 로그인: OAuth 검증 없이 provider/providerId만으로 로그인 또는 가입
+    // 개발용 로그인: OAuth 검증 없이 provider/providerId만으로 로그인 또는 가입; 탈퇴 회원도 동일하게 재활성화
     @Transactional
     public TokenResponse devLogin(DevLoginRequest request) {
         Member member = memberRepository
                 .findByProviderAndProviderId(request.provider(), request.providerId())
+                .map(existing -> {
+                    if (existing.isDeleted()) {
+                        existing.reactivate(request.email(), request.nickname());
+                    }
+                    return existing;
+                })
                 .orElseGet(() -> memberRepository.save(
                         Member.create(request.provider(), request.providerId(), request.email(), request.nickname())
                 ));
@@ -68,12 +80,15 @@ public class AuthService {
     }
 
     private Member registerNewMember(SocialLoginRequest request, OAuthUserInfo userInfo) {
-        String nickname = (request.nickname() != null && !request.nickname().isBlank())
+        return memberRepository.save(
+                Member.create(request.provider(), userInfo.providerId(), userInfo.email(), resolveNickname(request, userInfo))
+        );
+    }
+
+    private String resolveNickname(SocialLoginRequest request, OAuthUserInfo userInfo) {
+        return (request.nickname() != null && !request.nickname().isBlank())
                 ? request.nickname()
                 : userInfo.nickname();
-        return memberRepository.save(
-                Member.create(request.provider(), userInfo.providerId(), userInfo.email(), nickname)
-        );
     }
 
     private TokenResponse issueTokens(Long memberId) {

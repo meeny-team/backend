@@ -24,7 +24,8 @@ public enum ErrorCode {
     NOT_PIN_OWNER(HttpStatus.FORBIDDEN, "핀 작성자만 수정/삭제할 수 있습니다."),
     INVALID_PIN_PAYER(HttpStatus.BAD_REQUEST, "결제자는 플레이 멤버여야 합니다."),
     INVALID_PIN_SPLITS(HttpStatus.BAD_REQUEST, "분담자는 플레이 멤버여야 하며 비어있을 수 없습니다."),
-    INVALID_SPLIT_SUM(HttpStatus.BAD_REQUEST, "분담 금액의 합이 총 금액과 일치해야 합니다.");
+    INVALID_SPLIT_SUM(HttpStatus.BAD_REQUEST, "분담 금액의 합이 총 금액과 일치해야 합니다."),
+    OUTSTANDING_SETTLEMENT_BALANCE(HttpStatus.CONFLICT, "미정산 잔액이 남아있어 진행할 수 없습니다. 정산을 먼저 마감해주세요.");
 
     private final HttpStatus status;
     private final String message;

@@ -106,9 +106,8 @@ public class Pin {
         Settlement resolvedSettlement = settlement != null ? settlement : this.settlement;
         List<Split> resolvedSplits = splits != null ? splits : this.splits;
 
-        if (newAmount != null || settlement != null || splits != null) {
-            verifySettlement(resolvedAmount, resolvedSettlement, resolvedSplits, playMemberIds);
-        }
+        // 메타데이터만 바뀌어도 매번 검증해, Play 멤버 변동으로 좀비가 된 split/payer가 통과되지 않게 한다.
+        verifySettlement(resolvedAmount, resolvedSettlement, resolvedSplits, playMemberIds);
 
         this.amount = resolvedAmount;
         if (category != null) this.category = category;
