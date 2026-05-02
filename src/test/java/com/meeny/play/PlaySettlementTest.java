@@ -263,15 +263,96 @@ class PlaySettlementTest {
         mockMvc.perform(delete("/api/users/me").header("Authorization", "Bearer " + b.token()))
                 .andExpect(status().isNoContent());
 
-        // A가 정산 조회 시 B(탈퇴자)도 그대로 채무자로 노출되어야 함
+        // A가 정산 조회 시 B(탈퇴자)도 그대로 채무자로 노출, 닉네임은 마스킹되어야 함
         mockMvc.perform(get("/api/plays/" + playId + "/settlement")
                         .header("Authorization", "Bearer " + a.token()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalAmount").value(10000))
                 .andExpect(jsonPath("$.data.transfers.length()").value(1))
                 .andExpect(jsonPath("$.data.transfers[0].fromMemberId").value(b.memberId()))
+                .andExpect(jsonPath("$.data.transfers[0].fromNickname").value("(탈퇴한 사용자)"))
                 .andExpect(jsonPath("$.data.transfers[0].toMemberId").value(a.memberId()))
+                .andExpect(jsonPath("$.data.transfers[0].toNickname").value("A"))
                 .andExpect(jsonPath("$.data.transfers[0].amount").value(5000));
+    }
+
+    @Test
+    @DisplayName("정산 마감 - 잔액 != 0 일 때 409 PLAY_NOT_SETTLEABLE")
+    void closeSettlement_failsWhenOutstanding() throws Exception {
+        Session a = login("g-cl-fa-a", "clfaa@gmail.com", "A");
+        Session b = login("g-cl-fa-b", "clfab@gmail.com", "B");
+        CrewCtx crew = createCrew(a.token(), "마감실패크루");
+        joinCrew(b.token(), crew.inviteCode());
+        long playId = createPlay(a.token(), crew.crewId(), Set.of(b.memberId()));
+
+        // A 결제 10000, A/B 5000씩 → B가 A에게 5000 빚짐
+        createPin(a.token(), playId, 10000L, a.memberId(), List.of(
+                new SplitDto(a.memberId(), 5000L),
+                new SplitDto(b.memberId(), 5000L)
+        ));
+
+        mockMvc.perform(post("/api/plays/" + playId + "/settlement/close")
+                        .header("Authorization", "Bearer " + a.token()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PLAY_NOT_SETTLEABLE"));
+    }
+
+    @Test
+    @DisplayName("정산 마감 성공 후 핀 추가/수정/삭제 차단 - 409 PLAY_ALREADY_SETTLED")
+    void closeSettlement_succeeds_thenBlocksMutations() throws Exception {
+        Session a = login("g-cl-ok-a", "clokа@gmail.com", "A");
+        CrewCtx crew = createCrew(a.token(), "마감성공크루");
+        long playId = createPlay(a.token(), crew.crewId(), Set.of());
+
+        // A 본인 결제, 본인 split → 잔액 0
+        createPin(a.token(), playId, 10000L, a.memberId(), List.of(
+                new SplitDto(a.memberId(), 10000L)
+        ));
+
+        mockMvc.perform(post("/api/plays/" + playId + "/settlement/close")
+                        .header("Authorization", "Bearer " + a.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.settledAt").exists());
+
+        // 마감 후 핀 추가 시도 → 409
+        var blockedPin = new com.meeny.presentation.pin.dto.CreatePinRequest(
+                playId, 5000L, com.meeny.domain.activity.pin.PinCategory.FOOD,
+                "blocked", null, null, null,
+                new com.meeny.presentation.pin.dto.SettlementDto(com.meeny.domain.activity.pin.SettlementType.EQUAL, a.memberId()),
+                List.of(new SplitDto(a.memberId(), 5000L))
+        );
+        mockMvc.perform(post("/api/pins")
+                        .header("Authorization", "Bearer " + a.token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(blockedPin)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PLAY_ALREADY_SETTLED"));
+
+        // 한 번 마감된 Play를 다시 마감 시도 → 409
+        mockMvc.perform(post("/api/plays/" + playId + "/settlement/close")
+                        .header("Authorization", "Bearer " + a.token()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PLAY_ALREADY_SETTLED"));
+    }
+
+    @Test
+    @DisplayName("정산 마감 - 작성자 아닌 멤버는 마감 불가 (403 NOT_PLAY_OWNER)")
+    void closeSettlement_onlyAuthor() throws Exception {
+        Session a = login("g-cl-au-a", "claua@gmail.com", "A");
+        Session b = login("g-cl-au-b", "claub@gmail.com", "B");
+        CrewCtx crew = createCrew(a.token(), "마감권한크루");
+        joinCrew(b.token(), crew.inviteCode());
+        long playId = createPlay(a.token(), crew.crewId(), Set.of(b.memberId()));
+
+        // 잔액 0이라도 작성자가 아니면 마감 불가
+        createPin(a.token(), playId, 10000L, a.memberId(), List.of(
+                new SplitDto(a.memberId(), 10000L)
+        ));
+
+        mockMvc.perform(post("/api/plays/" + playId + "/settlement/close")
+                        .header("Authorization", "Bearer " + b.token()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("NOT_PLAY_OWNER"));
     }
 
     @Test

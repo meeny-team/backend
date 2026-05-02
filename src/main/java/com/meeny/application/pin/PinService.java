@@ -28,10 +28,11 @@ public class PinService {
     private final PlayRepository playRepository;
     private final CrewRepository crewRepository;
 
-    // 핀 생성: 작성자가 Play 멤버인지 검증한 뒤 정산 정보까지 포함해 저장
+    // 핀 생성: 작성자가 Play 멤버인지 검증한 뒤 정산 정보까지 포함해 저장; 마감된 Play엔 추가 불가
     @Transactional
     public PinResponse create(Long authorId, CreatePinRequest request) {
         Play play = findPlay(request.playId());
+        play.verifyMutable();
         verifyPlayMember(play, authorId);
 
         List<Split> splits = request.splits().stream().map(SplitDto::toDomain).toList();
@@ -69,11 +70,12 @@ public class PinService {
         return PinResponse.from(pin);
     }
 
-    // 핀 수정: 작성자 권한 검증과 정산/분배 갱신은 도메인에서 수행
+    // 핀 수정: 작성자 권한 검증과 정산/분배 갱신은 도메인에서 수행; 마감된 Play의 핀은 수정 불가
     @Transactional
     public PinResponse update(Long pinId, Long memberId, UpdatePinRequest request) {
         Pin pin = findPin(pinId);
         Play play = findPlay(pin.getPlayId());
+        play.verifyMutable();
 
         List<Split> splits = request.splits() == null
                 ? null
@@ -94,10 +96,12 @@ public class PinService {
         return PinResponse.from(pin);
     }
 
-    // 핀 삭제: 작성자 본인만 가능
+    // 핀 삭제: 작성자 본인만 가능; 마감된 Play의 핀은 삭제 불가
     @Transactional
     public void delete(Long pinId, Long memberId) {
         Pin pin = findPin(pinId);
+        Play play = findPlay(pin.getPlayId());
+        play.verifyMutable();
         pin.verifyAuthor(memberId);
         pinRepository.delete(pin);
     }
