@@ -33,7 +33,7 @@ public class PlayService {
 
         Set<Long> requestedMembers = request.memberIds() == null ? new HashSet<>() : new HashSet<>(request.memberIds());
         requestedMembers.add(creatorId);
-        verifyMembersAreSubsetOf(crew, requestedMembers);
+        crew.verifyContainsMembers(requestedMembers);
 
         Play play = Play.create(
                 crew.getId(),
@@ -75,7 +75,7 @@ public class PlayService {
         Set<Long> updatedMembers = request.memberIds() == null ? null : new HashSet<>(request.memberIds());
         if (updatedMembers != null) {
             updatedMembers.add(play.getCreatedBy());
-            verifyMembersAreSubsetOf(crew, updatedMembers);
+            crew.verifyContainsMembers(updatedMembers);
         }
 
         play.updateBy(
@@ -107,11 +107,5 @@ public class PlayService {
     private Crew findCrew(Long crewId) {
         return crewRepository.findById(crewId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CREW_NOT_FOUND));
-    }
-
-    private void verifyMembersAreSubsetOf(Crew crew, Set<Long> memberIds) {
-        if (!crew.getMemberIds().containsAll(memberIds)) {
-            throw new BusinessException(ErrorCode.INVALID_PLAY_MEMBERS);
-        }
     }
 }

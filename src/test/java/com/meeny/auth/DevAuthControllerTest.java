@@ -1,8 +1,7 @@
 package com.meeny.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.meeny.domain.auth.OAuthClient;
-import com.meeny.domain.member.SocialProvider;
+import com.meeny.domain.identity.SocialProvider;
 import com.meeny.presentation.auth.dto.DevLoginRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,7 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -27,15 +25,6 @@ class DevAuthControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
-
-    @MockitoBean(name = "googleOAuthClient")
-    private OAuthClient googleOAuthClient;
-
-    @MockitoBean(name = "kakaoOAuthClient")
-    private OAuthClient kakaoOAuthClient;
-
-    @MockitoBean(name = "appleOAuthClient")
-    private OAuthClient appleOAuthClient;
 
     @Test
     @DisplayName("dev 로그인 성공 - 신규 가입 + 토큰 발급")

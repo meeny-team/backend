@@ -81,6 +81,6 @@ public class CrewService {
                 return candidate;
             }
         }
-        throw new IllegalStateException("초대 코드 생성에 실패했습니다.");
+        throw new BusinessException(ErrorCode.INVITE_CODE_GENERATION_FAILED);
     }
 }
