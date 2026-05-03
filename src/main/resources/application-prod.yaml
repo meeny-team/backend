@@ -21,6 +21,11 @@ spring:
 jwt:
   secret: ${JWT_SECRET}
 
+# 운영에서는 Google 플랫폼별 client_id를 환경변수로 강제 (없으면 모든 Google 토큰이 audience 검증에서 거절됨)
+oauth:
+  google:
+    client-ids: ${GOOGLE_CLIENT_IDS}
+
 auth:
   dev-login:
     enabled: false
