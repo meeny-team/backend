@@ -1,10 +1,12 @@
 package com.meeny.infrastructure.oauth.client;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.meeny.domain.auth.OAuthClient;
 import com.meeny.domain.auth.OAuthUserInfo;
 import com.meeny.domain.identity.SocialProvider;
 import com.meeny.common.exception.BusinessException;
 import com.meeny.common.exception.ErrorCode;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -13,12 +15,13 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 @Component
 public class KakaoOAuthClient implements OAuthClient {
 
-    private static final String PROFILE_URI = "https://kapi.kakao.com/v2/user/me";
-
     private final WebClient webClient;
 
-    public KakaoOAuthClient(WebClient.Builder builder) {
-        this.webClient = builder.baseUrl(PROFILE_URI).build();
+    public KakaoOAuthClient(
+            WebClient.Builder builder,
+            @Value("${oauth.kakao.profile-uri:https://kapi.kakao.com/v2/user/me}") String profileUri
+    ) {
+        this.webClient = builder.baseUrl(profileUri).build();
     }
 
     @Override
@@ -47,7 +50,9 @@ public class KakaoOAuthClient implements OAuthClient {
         return new OAuthUserInfo(String.valueOf(response.id()), email, nickname);
     }
 
-    private record KakaoUserResponse(Long id, KakaoAccount kakaoAccount) {}
+    // Kakao API 응답은 snake_case(`kakao_account`)이므로 명시적으로 매핑.
+    // 기본 Spring Boot ObjectMapper는 camelCase만 매칭하므로, 어노테이션이 없으면 항상 null이 들어감.
+    private record KakaoUserResponse(Long id, @JsonProperty("kakao_account") KakaoAccount kakaoAccount) {}
 
     private record KakaoAccount(String email, KakaoProfile profile) {}
 
