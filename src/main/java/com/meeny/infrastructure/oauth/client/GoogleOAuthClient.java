@@ -5,19 +5,70 @@ import com.meeny.domain.auth.OAuthUserInfo;
 import com.meeny.domain.identity.SocialProvider;
 import com.meeny.common.exception.BusinessException;
 import com.meeny.common.exception.ErrorCode;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
+
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 public class GoogleOAuthClient implements OAuthClient {
 
-    private static final String TOKEN_INFO_URI = "https://oauth2.googleapis.com/tokeninfo";
+    private static final String GOOGLE_JWKS_URI = "https://www.googleapis.com/oauth2/v3/certs";
+    // Google ID 토큰의 iss는 두 가지 형태가 모두 유효하다고 공식 문서에 명시
+    private static final Set<String> GOOGLE_ISSUERS = Set.of(
+            "https://accounts.google.com",
+            "accounts.google.com"
+    );
 
-    private final WebClient webClient;
+    private final NimbusJwtDecoder decoder;
+    private final Set<String> allowedAudiences;
 
-    public GoogleOAuthClient(WebClient.Builder builder) {
-        this.webClient = builder.baseUrl(TOKEN_INFO_URI).build();
+    // GOOGLE_CLIENT_IDS는 콤마 구분(웹/iOS/Android 각각의 client_id) — 빈 값이면 모든 토큰을 audience 검증에서 거절
+    public GoogleOAuthClient(@Value("${oauth.google.client-ids:}") List<String> clientIds) {
+        this.allowedAudiences = clientIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .collect(Collectors.toUnmodifiableSet());
+
+        this.decoder = NimbusJwtDecoder.withJwkSetUri(GOOGLE_JWKS_URI).build();
+
+        OAuth2TokenValidator<Jwt> issuerValidator = jwt -> {
+            String iss = jwt.getIssuer() != null ? jwt.getIssuer().toString() : null;
+            if (iss != null && GOOGLE_ISSUERS.contains(iss)) {
+                return OAuth2TokenValidatorResult.success();
+            }
+            return OAuth2TokenValidatorResult.failure(
+                    new OAuth2Error("invalid_issuer", "Google ID 토큰의 issuer가 올바르지 않습니다.", null)
+            );
+        };
+
+        // 다중 audience 허용: Google은 플랫폼별로 client_id가 다르므로(web/iOS/Android), 토큰의 aud가 허용 리스트 중 하나라도 일치하면 통과
+        OAuth2TokenValidator<Jwt> audienceValidator = jwt -> {
+            List<String> audiences = jwt.getAudience();
+            if (audiences != null && audiences.stream().anyMatch(allowedAudiences::contains)) {
+                return OAuth2TokenValidatorResult.success();
+            }
+            return OAuth2TokenValidatorResult.failure(
+                    new OAuth2Error("invalid_audience", "Google ID 토큰의 audience가 허용된 client_id가 아닙니다.", null)
+            );
+        };
+
+        OAuth2TokenValidator<Jwt> defaults = JwtValidators.createDefault();
+        decoder.setJwtValidator(jwt -> {
+            OAuth2TokenValidatorResult def = defaults.validate(jwt);
+            if (def.hasErrors()) return def;
+            OAuth2TokenValidatorResult iss = issuerValidator.validate(jwt);
+            if (iss.hasErrors()) return iss;
+            return audienceValidator.validate(jwt);
+        });
     }
 
     @Override
@@ -25,21 +76,18 @@ public class GoogleOAuthClient implements OAuthClient {
         return SocialProvider.GOOGLE;
     }
 
+    // tokeninfo 엔드포인트(Google 권장 X) 대신 JWKS로 로컬 검증; 서명·만료·issuer·audience 모두 검증
     @Override
     public OAuthUserInfo getUserInfo(String idToken) {
-        GoogleTokenInfo info = webClient.get()
-                .uri(uriBuilder -> uriBuilder.queryParam("id_token", idToken).build())
-                .retrieve()
-                .bodyToMono(GoogleTokenInfo.class)
-                .onErrorMap(WebClientResponseException.class, e -> new BusinessException(ErrorCode.OAUTH_ERROR))
-                .block();
-
-        if (info == null || info.sub() == null) {
+        try {
+            Jwt jwt = decoder.decode(idToken);
+            return new OAuthUserInfo(
+                    jwt.getSubject(),
+                    jwt.getClaimAsString("email"),
+                    jwt.getClaimAsString("name")
+            );
+        } catch (JwtException e) {
             throw new BusinessException(ErrorCode.OAUTH_ERROR);
         }
-
-        return new OAuthUserInfo(info.sub(), info.email(), info.name());
     }
-
-    private record GoogleTokenInfo(String sub, String email, String name) {}
 }
