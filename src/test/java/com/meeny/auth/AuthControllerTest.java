@@ -151,6 +151,46 @@ class AuthControllerTest {
     }
 
     @Test
+    @DisplayName("이미 사용된 refreshToken을 또 쓰면 탈취 감지 - 401 REFRESH_TOKEN_REUSED, 그 후 새로 받은 토큰도 무효화")
+    void refresh_reuseDetected_invalidatesAllTokensForMember() throws Exception {
+        given(oauthClientRegistry.getUserInfo(any(SocialProvider.class), anyString()))
+                .willReturn(new OAuthUserInfo("google-uid-reuse", "reuse@gmail.com", "탈취유저"));
+
+        // 1) 로그인 → 첫 번째 refreshToken 획득
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/social")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new SocialLoginRequest(SocialProvider.GOOGLE, "token", null))))
+                .andExpect(status().isOk())
+                .andReturn();
+        String firstRefreshToken = objectMapper.readTree(loginResult.getResponse().getContentAsString())
+                .at("/data/refreshToken").asText();
+
+        // 2) 정상 갱신 → 두 번째 refreshToken 획득. 이 시점에 firstRefreshToken은 used 마킹됨.
+        MvcResult firstRefresh = mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new RefreshRequest(firstRefreshToken))))
+                .andExpect(status().isOk())
+                .andReturn();
+        String secondRefreshToken = objectMapper.readTree(firstRefresh.getResponse().getContentAsString())
+                .at("/data/refreshToken").asText();
+
+        // 3) 이미 사용된 firstRefreshToken을 또 쓰면 탈취로 간주 → REFRESH_TOKEN_REUSED
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new RefreshRequest(firstRefreshToken))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("REFRESH_TOKEN_REUSED"));
+
+        // 4) 탈취 감지 직후엔 합법적으로 받았던 secondRefreshToken도 함께 삭제되어야 함 → INVALID_TOKEN
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new RefreshRequest(secondRefreshToken))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_TOKEN"));
+    }
+
+    @Test
     @DisplayName("로그아웃 성공 - 204 No Content")
     void logout_success() throws Exception {
         given(oauthClientRegistry.getUserInfo(any(SocialProvider.class), anyString()))

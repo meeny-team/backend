@@ -29,6 +29,10 @@ public class RefreshToken {
     @Column(nullable = false)
     private LocalDateTime expiresAt;
 
+    // 토큰이 갱신에 한 번 사용되면 시간이 기록되고, 이후 같은 토큰이 다시 들어오면 탈취로 간주(reuse detection).
+    @Column
+    private LocalDateTime usedAt;
+
     public static RefreshToken create(Long memberId, String token, long expireMs) {
         RefreshToken rt = new RefreshToken();
         rt.memberId = memberId;
@@ -41,5 +45,13 @@ public class RefreshToken {
         if (LocalDateTime.now().isAfter(expiresAt)) {
             throw new BusinessException(ErrorCode.EXPIRED_TOKEN);
         }
+    }
+
+    public boolean isUsed() {
+        return usedAt != null;
+    }
+
+    public void markUsed() {
+        this.usedAt = LocalDateTime.now();
     }
 }
