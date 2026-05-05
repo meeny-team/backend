@@ -13,8 +13,15 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:
         format_sql: true
+
+  # 로컬 PostgreSQL도 운영과 동일하게 Flyway로 스키마 관리. 첫 부팅 전 docker volume이 비어 있어야 함
+  # (기존 ddl-auto: update로 만든 스키마가 남아 있으면 충돌 → docker compose down -v 후 재기동).
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+    locations: classpath:db/migration

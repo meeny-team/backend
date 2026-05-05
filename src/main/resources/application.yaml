@@ -21,6 +21,11 @@ spring:
       hibernate:
         format_sql: true
 
+  # 기본 프로필(H2 인메모리, 테스트)에서는 Flyway 비활성. PostgreSQL 전용 DDL이라 H2에서 깨지고,
+  # ddl-auto: create-drop이 매 실행마다 스키마를 재구성하므로 마이그레이션 도구가 불필요.
+  flyway:
+    enabled: false
+
 jwt:
   # 운영에서는 application-prod.yaml에서 ${JWT_SECRET}을 강제. dev 편의를 위해 여기엔 더미값을 둔다.
   secret: ${JWT_SECRET:meeny-jwt-secret-key-for-dev-only-must-be-at-least-32-bytes}
