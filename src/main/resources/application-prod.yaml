@@ -18,6 +18,13 @@ spring:
       hibernate:
         format_sql: false
 
+  # 운영 스키마 변경은 db/migration 의 V*__*.sql 만으로 관리. baseline-on-migrate=false 이므로
+  # 깨끗한 DB로 시작하거나, 기존 데이터가 있다면 운영 첫 적용 시점에 따로 baseline 절차를 거쳐야 함.
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+    locations: classpath:db/migration
+
 jwt:
   secret: ${JWT_SECRET}
 
