@@ -2,6 +2,7 @@ spring:
   application:
     name: meeny
 
+  # 기본 = 로컬 개발(H2 인메모리). prod/local 프로필은 datasource·시크릿을 모두 덮어쓴다.
   datasource:
     url: jdbc:h2:mem:meenydb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver
@@ -21,16 +22,23 @@ spring:
         format_sql: true
 
 jwt:
-  secret: meeny-jwt-secret-key-for-dev-only-must-be-at-least-32-bytes
+  # 운영에서는 application-prod.yaml에서 ${JWT_SECRET}을 강제. dev 편의를 위해 여기엔 더미값을 둔다.
+  secret: ${JWT_SECRET:meeny-jwt-secret-key-for-dev-only-must-be-at-least-32-bytes}
   access-token-expire-ms: 3600000
   refresh-token-expire-ms: 604800000
 
 oauth:
   apple:
-    client-id: com.meeny.app  # Apple Developer에서 발급한 Bundle ID로 교체
+    client-id: ${APPLE_CLIENT_ID:com.meeny.app}
 
 # 로컬 개발 검증용 dev-login 엔드포인트 (POST /api/auth/dev/login).
-# 운영 배포 시 반드시 false로 두어야 합니다 (환경변수 AUTH_DEV-LOGIN_ENABLED=false 또는 prod 프로필).
+# 운영 배포 시 반드시 false로 두어야 합니다 (prod 프로필이 자동으로 false로 덮어씀).
 auth:
   dev-login:
     enabled: ${AUTH_DEV_LOGIN_ENABLED:true}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs

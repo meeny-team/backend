@@ -1,0 +1,24 @@
+# 로컬에서 PostgreSQL로 검증할 때만 사용. 일상 dev는 H2 인메모리(application.yaml 기본값)로 충분.
+# 사용:
+#   docker compose up -d
+#   SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: meeny-postgres
+    environment:
+      POSTGRES_DB: meeny
+      POSTGRES_USER: meeny
+      POSTGRES_PASSWORD: meeny
+    ports:
+      - "5432:5432"
+    volumes:
+      - meeny-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meeny -d meeny"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  meeny-postgres-data:

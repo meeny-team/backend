@@ -1,0 +1,20 @@
+# 로컬 PostgreSQL 검증용 프로필: docker-compose로 띄운 컨테이너에 접속, ddl-auto는 update로 스키마 자동 반영.
+# `SPRING_PROFILES_ACTIVE=local ./gradlew bootRun` 으로 사용.
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/meeny}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USERNAME:meeny}
+    password: ${DB_PASSWORD:meeny}
+
+  h2:
+    console:
+      enabled: false
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
