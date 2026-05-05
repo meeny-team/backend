@@ -23,6 +23,7 @@ public class AuthService {
 
     private final MemberRepository memberRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final RefreshTokenInvalidator refreshTokenInvalidator;
     private final TokenIssuer tokenIssuer;
     private final OAuthClientRegistry oauthClientRegistry;
 
@@ -44,16 +45,24 @@ public class AuthService {
         return issueTokens(member.getId());
     }
 
-    // 토큰 재발급: 리프레시 토큰을 검증하고 기존 토큰을 폐기한 뒤 새 토큰 쌍 발급
+    // 토큰 재발급(rotation + reuse detection):
+    // - 정상: 옛 토큰을 used 마킹(영속화는 dirty checking) 후 새 토큰 쌍 발급
+    // - 이미 used인 토큰이 또 들어오면 탈취로 간주 → 해당 회원의 모든 refresh 토큰 강제 무효화
+    //   (별도 트랜잭션에서 commit 후 예외를 던져 클라이언트에 재로그인 유도)
     @Transactional
     public TokenResponse refresh(String refreshTokenValue) {
         RefreshToken refreshToken = refreshTokenRepository.findByToken(refreshTokenValue)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_TOKEN));
-        refreshToken.validate();
 
-        Long memberId = refreshToken.getMemberId();
-        refreshTokenRepository.deleteByToken(refreshTokenValue);
-        return issueTokens(memberId);
+        if (refreshToken.isUsed()) {
+            refreshTokenInvalidator.invalidateAllForMember(refreshToken.getMemberId());
+            throw new BusinessException(ErrorCode.REFRESH_TOKEN_REUSED);
+        }
+
+        refreshToken.validate();
+        refreshToken.markUsed();
+
+        return issueTokens(refreshToken.getMemberId());
     }
 
     // 로그아웃: 리프레시 토큰을 삭제해 재발급을 막음
