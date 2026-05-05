@@ -33,12 +33,18 @@ jwt:
   refresh-token-expire-ms: 604800000
 
 oauth:
+  # 외부 API 엔드포인트 URL은 yaml로 노출해서 테스트 시 MockWebServer로 가로챌 수 있게 함.
+  # 실제 운영에서 바꿀 일은 거의 없지만 설정 가능성을 열어둠.
+  kakao:
+    profile-uri: https://kapi.kakao.com/v2/user/me
   apple:
     client-id: ${APPLE_CLIENT_ID:com.meeny.app}
+    jwks-uri: https://appleid.apple.com/auth/keys
   # Google은 플랫폼별 client_id가 다르므로 콤마 구분 리스트로 모두 허용 (web/iOS/Android).
   # 로컬 dev에서 실 Google 로그인 검증을 안 하면 비워둬도 됨 (audience 검증에서 차단되어 결과적으로 Google 로그인 비활성).
   google:
     client-ids: ${GOOGLE_CLIENT_IDS:}
+    jwks-uri: https://www.googleapis.com/oauth2/v3/certs
 
 # 로컬 개발 검증용 dev-login 엔드포인트 (POST /api/auth/dev/login).
 # 운영 배포 시 반드시 false로 두어야 합니다 (prod 프로필이 자동으로 false로 덮어씀).

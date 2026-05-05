@@ -22,7 +22,6 @@ import java.util.stream.Collectors;
 @Component
 public class GoogleOAuthClient implements OAuthClient {
 
-    private static final String GOOGLE_JWKS_URI = "https://www.googleapis.com/oauth2/v3/certs";
     // Google ID 토큰의 iss는 두 가지 형태가 모두 유효하다고 공식 문서에 명시
     private static final Set<String> GOOGLE_ISSUERS = Set.of(
             "https://accounts.google.com",
@@ -33,15 +32,21 @@ public class GoogleOAuthClient implements OAuthClient {
     private final Set<String> allowedAudiences;
 
     // GOOGLE_CLIENT_IDS는 콤마 구분(웹/iOS/Android 각각의 client_id) — 빈 값이면 모든 토큰을 audience 검증에서 거절
-    public GoogleOAuthClient(@Value("${oauth.google.client-ids:}") List<String> clientIds) {
+    // jwks-uri는 yaml 디폴트로 Google 공식 엔드포인트, 테스트에선 MockWebServer URL로 교체
+    public GoogleOAuthClient(
+            @Value("${oauth.google.client-ids:}") List<String> clientIds,
+            @Value("${oauth.google.jwks-uri:https://www.googleapis.com/oauth2/v3/certs}") String jwksUri
+    ) {
         this.allowedAudiences = clientIds.stream()
                 .filter(id -> id != null && !id.isBlank())
                 .collect(Collectors.toUnmodifiableSet());
 
-        this.decoder = NimbusJwtDecoder.withJwkSetUri(GOOGLE_JWKS_URI).build();
+        this.decoder = NimbusJwtDecoder.withJwkSetUri(jwksUri).build();
 
+        // jwt.getIssuer()는 URL 타입이라 "accounts.google.com"(scheme 없음, 공식 문서가 인정하는 형태)에서
+        // URL 파싱이 실패함. iss 클레임을 String으로 읽어 두 형태 모두 안전하게 비교.
         OAuth2TokenValidator<Jwt> issuerValidator = jwt -> {
-            String iss = jwt.getIssuer() != null ? jwt.getIssuer().toString() : null;
+            String iss = jwt.getClaimAsString("iss");
             if (iss != null && GOOGLE_ISSUERS.contains(iss)) {
                 return OAuth2TokenValidatorResult.success();
             }

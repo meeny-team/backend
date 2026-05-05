@@ -20,13 +20,15 @@ import java.util.List;
 @Component
 public class AppleOAuthClient implements OAuthClient {
 
-    private static final String APPLE_JWKS_URI = "https://appleid.apple.com/auth/keys";
     private static final String APPLE_ISSUER = "https://appleid.apple.com";
 
     private final NimbusJwtDecoder decoder;
 
-    public AppleOAuthClient(@Value("${oauth.apple.client-id}") String clientId) {
-        this.decoder = NimbusJwtDecoder.withJwkSetUri(APPLE_JWKS_URI).build();
+    public AppleOAuthClient(
+            @Value("${oauth.apple.client-id}") String clientId,
+            @Value("${oauth.apple.jwks-uri:https://appleid.apple.com/auth/keys}") String jwksUri
+    ) {
+        this.decoder = NimbusJwtDecoder.withJwkSetUri(jwksUri).build();
 
         OAuth2TokenValidator<Jwt> issuerValidator = JwtValidators.createDefaultWithIssuer(APPLE_ISSUER);
         OAuth2TokenValidator<Jwt> audienceValidator = jwt -> {
