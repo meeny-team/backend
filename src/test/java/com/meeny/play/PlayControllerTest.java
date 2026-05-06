@@ -114,7 +114,7 @@ class PlayControllerTest {
                 .andExpect(jsonPath("$.data.title").value("제주 여행"))
                 .andExpect(jsonPath("$.data.type").value("TRAVEL"))
                 .andExpect(jsonPath("$.data.crewId").value(crew.crewId()))
-                .andExpect(jsonPath("$.data.memberIds.length()").value(1))
+                .andExpect(jsonPath("$.data.members.length()").value(1))
                 .andExpect(jsonPath("$.data.regions[0]").value("제주 제주시"))
                 .andExpect(jsonPath("$.data.tags[0]").value("힐링"));
     }

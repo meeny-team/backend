@@ -86,7 +86,7 @@ class CrewControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.name").value("제주여행"))
                 .andExpect(jsonPath("$.data.inviteCode").isString())
-                .andExpect(jsonPath("$.data.memberIds.length()").value(1))
+                .andExpect(jsonPath("$.data.members.length()").value(1))
                 .andExpect(jsonPath("$.data.createdBy").isNumber());
     }
 
@@ -131,7 +131,7 @@ class CrewControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new JoinByCodeRequest(inviteCode))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.memberIds.length()").value(2));
+                .andExpect(jsonPath("$.data.members.length()").value(2));
     }
 
     @Test
