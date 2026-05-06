@@ -9,6 +9,8 @@ import com.meeny.domain.activity.pin.PinRepository;
 import com.meeny.domain.activity.pin.PlaySettlementResult;
 import com.meeny.domain.activity.play.Play;
 import com.meeny.domain.activity.play.PlayRepository;
+import com.meeny.domain.identity.Member;
+import com.meeny.domain.identity.MemberRepository;
 import com.meeny.presentation.play.dto.CreatePlayRequest;
 import com.meeny.presentation.play.dto.PlayResponse;
 import com.meeny.presentation.play.dto.UpdatePlayRequest;
@@ -28,6 +30,7 @@ public class PlayService {
     private final PlayRepository playRepository;
     private final CrewRepository crewRepository;
     private final PinRepository pinRepository;
+    private final MemberRepository memberRepository;
 
     // Play 생성: 크루 멤버 검증 후, 참여자가 모두 크루에 속하는지 확인하고 저장 (생성자는 자동 포함)
     @Transactional
@@ -50,7 +53,7 @@ public class PlayService {
                 request.tags(),
                 request.coverImage()
         );
-        return PlayResponse.from(playRepository.save(play));
+        return toResponse(playRepository.save(play));
     }
 
     // 특정 크루의 Play 목록 조회 (크루 멤버에게만 노출)
@@ -58,7 +61,7 @@ public class PlayService {
         Crew crew = findCrew(crewId);
         crew.verifyMember(memberId);
         return playRepository.findAllByCrewId(crewId).stream()
-                .map(PlayResponse::from)
+                .map(this::toResponse)
                 .toList();
     }
 
@@ -67,7 +70,7 @@ public class PlayService {
         Play play = findPlay(playId);
         Crew crew = findCrew(play.getCrewId());
         crew.verifyMember(memberId);
-        return PlayResponse.from(play);
+        return toResponse(play);
     }
 
     // Play 수정: 멤버 변경 시 생성자는 항상 포함되며, 새 멤버가 크루에 속하는지 검증; 정산 잔액이 남은 멤버는 제거 차단; 마감된 Play는 수정 불가
@@ -94,7 +97,7 @@ public class PlayService {
                 request.tags(),
                 request.coverImage()
         );
-        return PlayResponse.from(play);
+        return toResponse(play);
     }
 
     // Play 삭제: 생성자 본인만 가능
@@ -103,6 +106,12 @@ public class PlayService {
         Play play = findPlay(playId);
         play.verifyAuthor(memberId);
         playRepository.delete(play);
+    }
+
+    // 응답 빌드: 플레이의 멤버 ID 묶음으로 회원 정보를 한 번에 조회해 닉네임/프로필을 같이 내려준다.
+    private PlayResponse toResponse(Play play) {
+        List<Member> members = memberRepository.findAllById(play.getMemberIds());
+        return PlayResponse.from(play, members);
     }
 
     private Play findPlay(Long playId) {

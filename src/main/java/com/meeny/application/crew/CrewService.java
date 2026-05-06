@@ -10,6 +10,8 @@ import com.meeny.domain.activity.pin.PinRepository;
 import com.meeny.domain.activity.pin.PlaySettlementResult;
 import com.meeny.domain.activity.play.Play;
 import com.meeny.domain.activity.play.PlayRepository;
+import com.meeny.domain.identity.Member;
+import com.meeny.domain.identity.MemberRepository;
 import com.meeny.presentation.crew.dto.CreateCrewRequest;
 import com.meeny.presentation.crew.dto.CrewResponse;
 import com.meeny.presentation.crew.dto.UpdateCrewRequest;
@@ -29,19 +31,20 @@ public class CrewService {
     private final CrewRepository crewRepository;
     private final PlayRepository playRepository;
     private final PinRepository pinRepository;
+    private final MemberRepository memberRepository;
 
     // 크루 생성: 중복 없는 초대 코드를 발급하고 크루를 저장
     @Transactional
     public CrewResponse create(Long creatorId, CreateCrewRequest request) {
         InviteCode inviteCode = generateUniqueInviteCode();
         Crew crew = Crew.create(request.name(), request.coverImage(), creatorId, inviteCode);
-        return CrewResponse.from(crewRepository.save(crew));
+        return toResponse(crewRepository.save(crew));
     }
 
     // 내가 속한 크루 목록 조회
     public List<CrewResponse> getMyCrews(Long memberId) {
         return crewRepository.findAllByMemberId(memberId).stream()
-                .map(CrewResponse::from)
+                .map(this::toResponse)
                 .toList();
     }
 
@@ -49,7 +52,7 @@ public class CrewService {
     public CrewResponse getCrewDetail(Long crewId, Long memberId) {
         Crew crew = findCrew(crewId);
         crew.verifyMember(memberId);
-        return CrewResponse.from(crew);
+        return toResponse(crew);
     }
 
     // 초대 코드로 크루 가입
@@ -58,7 +61,7 @@ public class CrewService {
         Crew crew = crewRepository.findByInviteCode(inviteCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INVITE_CODE));
         crew.join(memberId);
-        return CrewResponse.from(crew);
+        return toResponse(crew);
     }
 
     // 크루 탈퇴: 크루 안 어떤 Play에서도 미정산 잔액(받을/낼 돈)이 남아있으면 탈퇴 차단
@@ -83,7 +86,13 @@ public class CrewService {
     public CrewResponse update(Long crewId, Long memberId, UpdateCrewRequest request) {
         Crew crew = findCrew(crewId);
         crew.updateBy(memberId, request.name(), request.coverImage());
-        return CrewResponse.from(crew);
+        return toResponse(crew);
+    }
+
+    // 응답 빌드: 크루의 멤버 ID 묶음으로 회원 정보를 한 번에 조회해 닉네임/프로필을 같이 내려준다.
+    private CrewResponse toResponse(Crew crew) {
+        List<Member> members = memberRepository.findAllById(crew.getMemberIds());
+        return CrewResponse.from(crew, members);
     }
 
     private Crew findCrew(Long crewId) {
