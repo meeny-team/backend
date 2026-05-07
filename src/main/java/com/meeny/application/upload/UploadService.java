@@ -44,10 +44,13 @@ public class UploadService {
         String objectKey = "%s/%d/%s.%s".formatted(
                 purpose.prefix(), memberId, UUID.randomUUID(), extension);
 
+        // 서명 시 contentType 을 일부러 넣지 않는다. 넣으면 X-Amz-SignedHeaders 에 content-type 이 포함되어
+        // 클라이언트가 PUT 시 보낸 Content-Type 헤더가 한 글자라도 다르면 403 SignatureDoesNotMatch 가 난다.
+        // (RN fetch + Blob 조합에서 흔한 케이스.) host 만 서명하고, S3 에 저장되는 Content-Type 메타데이터는
+        // 클라이언트가 보낸 헤더값 그대로 기록되도록 둔다 — 프론트가 응답의 contentType 을 그대로 PUT 헤더에 사용함.
         PutObjectRequest putRequest = PutObjectRequest.builder()
                 .bucket(properties.bucket())
                 .key(objectKey)
-                .contentType(contentType)
                 .build();
 
         Duration expiry = Duration.ofMinutes(Math.max(1, properties.presignedUrlExpiryMinutes()));
