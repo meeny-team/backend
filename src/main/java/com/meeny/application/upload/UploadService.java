@@ -63,6 +63,7 @@ public class UploadService {
                 presigned.url().toString(),
                 objectKey,
                 publicUrl,
+                contentType,
                 Instant.now().plus(expiry)
         );
     }
@@ -71,6 +72,7 @@ public class UploadService {
             String uploadUrl,
             String objectKey,
             String publicUrl,
+            String contentType,
             Instant expiresAt
     ) {}
 }
