@@ -77,7 +77,8 @@ management:
         enabled: true
       show-details: never
 
-# 이미지 업로드용 S3. bucket / access-key 가 비어 있으면 UploadService가 호출 시 UPLOAD_NOT_CONFIGURED를 던져 dev 환경에서도 부팅은 가능.
+# 이미지 업로드용 S3. bucket이 비어 있으면 UploadService가 호출 시 UPLOAD_NOT_CONFIGURED를 던져 dev 환경에서도 부팅은 가능.
+# 자격증명: access-key/secret이 있으면 정적 키 사용(local). 없으면 DefaultCredentialsProvider가 EC2/ECS instance role을 자동 픽업(prod).
 aws:
   s3:
     bucket: ${AWS_S3_BUCKET:}
