@@ -1,0 +1,13 @@
+.git
+.github
+.gradle
+.idea
+build
+bin
+*.log
+HELP.md
+README.md
+CLAUDE.md
+docker-compose.yml
+.gitignore
+.gitattributes
