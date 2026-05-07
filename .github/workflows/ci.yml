@@ -4,18 +4,25 @@ on:
   push:
     branches:
       - dev
+      - main
       - 'feat/**'
       - 'fix/**'
       - 'chore/**'
       - 'refactor/**'
+      - 'ci/**'
   pull_request:
     branches:
       - dev
       - main
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REPOSITORY: meeny-backend
 
 jobs:
   build:
@@ -39,3 +46,67 @@ jobs:
 
       - name: Build (compile + test)
         run: ./gradlew --no-daemon build
+
+      # 실패한 테스트 리포트는 항상 남겨 디버깅에 쓸 수 있게.
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            build/reports/tests/
+            build/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # 이미지 빌드/푸시는 main 으로의 push 일 때만 (= 배포 직전 PR merge / 직접 push).
+  # dev·피쳐 브랜치·PR 이벤트에서는 안 돌아가고, 테스트(build job) 실패 시에도 needs: build 로 차단됨.
+  build-and-push:
+    name: Build and push image to ECR
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04-arm
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 두 태그 동시 발행:
+      #   :<sha>      불변 — 배포 매니페스트가 정확히 이 이미지를 가리키게 (롤백 가능).
+      #   :<branch>   가변 — "dev 의 최신" / "main 의 최신" 편의 태그.
+      - name: Build & push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          # 네이티브 ARM 러너에서 빌드. 멀티아치(amd64+arm64) 가 필요해지면
+          # ubuntu-latest + docker/setup-qemu-action 으로 바꾸고 platforms 를 늘리면 됨.
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Print pushed tags
+        run: |
+          echo "Pushed:"
+          echo "  ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
+          echo "  ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.ref_name }}"
