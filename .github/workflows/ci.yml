@@ -59,12 +59,12 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # 이미지 빌드/푸시는 dev 또는 main 으로의 push 일 때만 (= PR merge 또는 직접 push).
-  # 피쳐 브랜치 푸시·PR 이벤트에서는 안 돌아가고, 테스트(build job) 실패 시에도 needs: build 로 차단됨.
+  # 이미지 빌드/푸시는 main 으로의 push 일 때만 (= 배포 직전 PR merge / 직접 push).
+  # dev·피쳐 브랜치·PR 이벤트에서는 안 돌아가고, 테스트(build job) 실패 시에도 needs: build 로 차단됨.
   build-and-push:
     name: Build and push image to ECR
     needs: build
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04-arm
 
     permissions:
