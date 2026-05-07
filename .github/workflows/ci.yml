@@ -65,7 +65,7 @@ jobs:
     name: Build and push image to ECR
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
 
     permissions:
       contents: read
@@ -73,6 +73,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -91,13 +94,12 @@ jobs:
       # 두 태그 동시 발행:
       #   :<sha>      불변 — 배포 매니페스트가 정확히 이 이미지를 가리키게 (롤백 가능).
       #   :<branch>   가변 — "dev 의 최신" / "main 의 최신" 편의 태그.
+      # 멀티아치: amd64(t3.micro 같은 x86 인스턴스/프리티어) + arm64(t4g/Graviton).
       - name: Build & push image
         uses: docker/build-push-action@v6
         with:
           context: .
-          # 네이티브 ARM 러너에서 빌드. 멀티아치(amd64+arm64) 가 필요해지면
-          # ubuntu-latest + docker/setup-qemu-action 으로 바꾸고 platforms 를 늘리면 됨.
-          platforms: linux/arm64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
