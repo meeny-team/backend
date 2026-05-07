@@ -16,7 +16,10 @@ env:
 jobs:
   build-and-push:
     name: Build and push image
-    runs-on: ubuntu-latest
+    # arm64 네이티브 러너 — Gradle bootJar 같은 컴파일 무거운 단계를 QEMU 에뮬 없이 돌리려고.
+    # 만약 플랜에서 ARM 러너가 막혀 있다면: runs-on 을 ubuntu-latest 로 되돌리고
+    # docker/setup-qemu-action@v3 을 한 단계 추가한 뒤 platforms: linux/arm64 만 둬도 동작 (속도 손해 있음).
+    runs-on: ubuntu-24.04-arm
 
     permissions:
       contents: read
@@ -46,6 +49,10 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          # 네이티브 ARM 러너에서 빌드하므로 emulation 없이 단일 platform 만 발행.
+          # 추후 멀티아치 (amd64+arm64) 가 필요해지면 "linux/amd64,linux/arm64" 로 늘리고
+          # ubuntu-latest 러너에서 QEMU 셋업 필요.
+          platforms: linux/arm64
           push: true
           tags: |
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
