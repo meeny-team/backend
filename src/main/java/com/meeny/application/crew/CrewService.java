@@ -12,6 +12,7 @@ import com.meeny.domain.activity.play.Play;
 import com.meeny.domain.activity.play.PlayRepository;
 import com.meeny.domain.identity.Member;
 import com.meeny.domain.identity.MemberRepository;
+import com.meeny.infrastructure.aws.S3UrlSigner;
 import com.meeny.presentation.crew.dto.CreateCrewRequest;
 import com.meeny.presentation.crew.dto.CrewResponse;
 import com.meeny.presentation.crew.dto.UpdateCrewRequest;
@@ -32,6 +33,7 @@ public class CrewService {
     private final PlayRepository playRepository;
     private final PinRepository pinRepository;
     private final MemberRepository memberRepository;
+    private final S3UrlSigner imageSigner;
 
     // 크루 생성: 중복 없는 초대 코드를 발급하고 크루를 저장
     @Transactional
@@ -92,7 +94,7 @@ public class CrewService {
     // 응답 빌드: 크루의 멤버 ID 묶음으로 회원 정보를 한 번에 조회해 닉네임/프로필을 같이 내려준다.
     private CrewResponse toResponse(Crew crew) {
         List<Member> members = memberRepository.findAllById(crew.getMemberIds());
-        return CrewResponse.from(crew, members);
+        return CrewResponse.from(crew, members, imageSigner);
     }
 
     private Crew findCrew(Long crewId) {

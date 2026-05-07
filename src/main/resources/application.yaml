@@ -70,3 +70,13 @@ management:
       probes:
         enabled: true
       show-details: never
+
+# 이미지 업로드용 S3. bucket / access-key 가 비어 있으면 UploadService가 호출 시 UPLOAD_NOT_CONFIGURED를 던져 dev 환경에서도 부팅은 가능.
+aws:
+  s3:
+    bucket: ${AWS_S3_BUCKET:}
+    region: ${AWS_S3_REGION:ap-northeast-2}
+    access-key-id: ${AWS_S3_ACCESS_KEY_ID:}
+    secret-access-key: ${AWS_S3_SECRET_ACCESS_KEY:}
+    presigned-url-expiry-minutes: ${AWS_S3_PRESIGNED_URL_EXPIRY_MINUTES:10}
+    read-url-expiry-minutes: ${AWS_S3_READ_URL_EXPIRY_MINUTES:60}

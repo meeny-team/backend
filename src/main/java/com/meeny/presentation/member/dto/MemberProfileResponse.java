@@ -1,6 +1,7 @@
 package com.meeny.presentation.member.dto;
 
 import com.meeny.domain.identity.Member;
+import com.meeny.infrastructure.aws.S3UrlSigner;
 
 public record MemberProfileResponse(
         Long id,
@@ -9,12 +10,12 @@ public record MemberProfileResponse(
         String profileImage,
         String bio
 ) {
-    public static MemberProfileResponse from(Member member) {
+    public static MemberProfileResponse from(Member member, S3UrlSigner imageSigner) {
         return new MemberProfileResponse(
                 member.getId(),
                 member.getNickname(),
                 member.getEmail(),
-                member.getProfileImage(),
+                imageSigner.sign(member.getProfileImage()),
                 member.getBio()
         );
     }

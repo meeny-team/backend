@@ -9,6 +9,7 @@ import com.meeny.domain.activity.pin.PinRepository;
 import com.meeny.domain.activity.pin.Split;
 import com.meeny.domain.activity.play.Play;
 import com.meeny.domain.activity.play.PlayRepository;
+import com.meeny.infrastructure.aws.S3UrlSigner;
 import com.meeny.presentation.pin.dto.CreatePinRequest;
 import com.meeny.presentation.pin.dto.PinResponse;
 import com.meeny.presentation.pin.dto.SplitDto;
@@ -27,6 +28,7 @@ public class PinService {
     private final PinRepository pinRepository;
     private final PlayRepository playRepository;
     private final CrewRepository crewRepository;
+    private final S3UrlSigner imageSigner;
 
     // 핀 생성: 작성자가 Play 멤버인지 검증한 뒤 정산 정보까지 포함해 저장; 마감된 Play엔 추가 불가
     @Transactional
@@ -50,7 +52,7 @@ public class PinService {
                 splits,
                 play.getMemberIds()
         );
-        return PinResponse.from(pinRepository.save(pin));
+        return PinResponse.from(pinRepository.save(pin), imageSigner);
     }
 
     // 특정 Play에 속한 핀 목록 조회 (크루 멤버에게만 노출)
@@ -58,7 +60,7 @@ public class PinService {
         Play play = findPlay(playId);
         verifyPlayCrewMember(play, memberId);
         return pinRepository.findAllByPlayId(playId).stream()
-                .map(PinResponse::from)
+                .map(p -> PinResponse.from(p, imageSigner))
                 .toList();
     }
 
@@ -67,7 +69,7 @@ public class PinService {
         Pin pin = findPin(pinId);
         Play play = findPlay(pin.getPlayId());
         verifyPlayCrewMember(play, memberId);
-        return PinResponse.from(pin);
+        return PinResponse.from(pin, imageSigner);
     }
 
     // 핀 수정: 작성자 권한 검증과 정산/분배 갱신은 도메인에서 수행; 마감된 Play의 핀은 수정 불가
@@ -93,7 +95,7 @@ public class PinService {
                 splits,
                 play.getMemberIds()
         );
-        return PinResponse.from(pin);
+        return PinResponse.from(pin, imageSigner);
     }
 
     // 핀 삭제: 작성자 본인만 가능; 마감된 Play의 핀은 삭제 불가

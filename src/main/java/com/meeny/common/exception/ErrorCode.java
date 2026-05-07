@@ -28,7 +28,10 @@ public enum ErrorCode {
     INVALID_SPLIT_SUM(HttpStatus.BAD_REQUEST, "분담 금액의 합이 총 금액과 일치해야 합니다."),
     OUTSTANDING_SETTLEMENT_BALANCE(HttpStatus.CONFLICT, "미정산 잔액이 남아있어 진행할 수 없습니다. 정산을 먼저 마감해주세요."),
     PLAY_ALREADY_SETTLED(HttpStatus.CONFLICT, "정산이 마감된 플레이는 더 이상 변경할 수 없습니다."),
-    PLAY_NOT_SETTLEABLE(HttpStatus.CONFLICT, "모든 멤버의 정산이 0이 되어야 마감할 수 있습니다.");
+    PLAY_NOT_SETTLEABLE(HttpStatus.CONFLICT, "모든 멤버의 정산이 0이 되어야 마감할 수 있습니다."),
+    UPLOAD_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "업로드 스토리지가 구성되지 않았습니다."),
+    UPLOAD_INVALID_CONTENT_TYPE(HttpStatus.BAD_REQUEST, "허용되지 않는 이미지 형식입니다."),
+    UPLOAD_INVALID_PURPOSE(HttpStatus.BAD_REQUEST, "지원하지 않는 업로드 용도입니다.");
 
     private final HttpStatus status;
     private final String message;

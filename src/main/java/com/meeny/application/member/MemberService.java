@@ -7,6 +7,7 @@ import com.meeny.domain.identity.Member;
 import com.meeny.domain.identity.MemberRepository;
 import com.meeny.common.exception.BusinessException;
 import com.meeny.common.exception.ErrorCode;
+import com.meeny.infrastructure.aws.S3UrlSigner;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,11 +19,12 @@ public class MemberService {
 
     private final MemberRepository memberRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final S3UrlSigner imageSigner;
 
     // 내 프로필 조회
     public MemberProfileResponse getProfile(Long memberId) {
         Member member = findActiveMember(memberId);
-        return MemberProfileResponse.from(member);
+        return MemberProfileResponse.from(member, imageSigner);
     }
 
     // 프로필 수정: 닉네임, 프로필 이미지, 자기소개 변경
@@ -30,7 +32,7 @@ public class MemberService {
     public MemberProfileResponse updateProfile(Long memberId, UpdateProfileRequest request) {
         Member member = findActiveMember(memberId);
         member.updateProfile(request.nickname(), request.profileImage(), request.bio());
-        return MemberProfileResponse.from(member);
+        return MemberProfileResponse.from(member, imageSigner);
     }
 
     // 회원 탈퇴: 과거 정산 외래키 무결성을 지키기 위해 소프트 딜리트, 토큰만 즉시 폐기
