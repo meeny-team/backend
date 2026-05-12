@@ -9,6 +9,7 @@ import com.meeny.domain.auth.RefreshToken;
 import com.meeny.domain.auth.RefreshTokenRepository;
 import com.meeny.domain.identity.Member;
 import com.meeny.domain.identity.MemberRepository;
+import com.meeny.domain.identity.SocialProvider;
 import com.meeny.infrastructure.oauth.OAuthClientRegistry;
 import com.meeny.common.exception.BusinessException;
 import com.meeny.common.exception.ErrorCode;
@@ -20,6 +21,10 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AuthService {
+
+    // 둘러보기(데모) 단일 계정 식별자. provider+providerId 유니크 제약상 (GUEST, DEMO_GUEST_PROVIDER_ID) 한 row 가 모든 둘러보기 사용자를 공유한다.
+    private static final String DEMO_GUEST_PROVIDER_ID = "demo";
+    private static final String DEMO_GUEST_NICKNAME = "데모 사용자";
 
     private final MemberRepository memberRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -69,6 +74,24 @@ public class AuthService {
     @Transactional
     public void logout(String refreshTokenValue) {
         refreshTokenRepository.deleteByToken(refreshTokenValue);
+    }
+
+    // 둘러보기(게스트) 로그인: 인증 없이 공유 데모 계정으로 토큰 발급.
+    // App Review 리뷰어가 OTP 없이 앱 전체 기능을 확인할 수 있도록 하는 진입점이기도 하다.
+    @Transactional
+    public TokenResponse guestLogin() {
+        Member member = memberRepository
+                .findByProviderAndProviderId(SocialProvider.GUEST, DEMO_GUEST_PROVIDER_ID)
+                .map(existing -> {
+                    if (existing.isDeleted()) {
+                        existing.reactivate(null, DEMO_GUEST_NICKNAME);
+                    }
+                    return existing;
+                })
+                .orElseGet(() -> memberRepository.save(
+                        Member.create(SocialProvider.GUEST, DEMO_GUEST_PROVIDER_ID, null, DEMO_GUEST_NICKNAME)
+                ));
+        return issueTokens(member.getId());
     }
 
     // 개발용 로그인: OAuth 검증 없이 provider/providerId만으로 로그인 또는 가입; 탈퇴 회원도 동일하게 재활성화
