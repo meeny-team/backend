@@ -27,6 +27,12 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok(response, "로그인에 성공했습니다."));
     }
 
+    @PostMapping("/guest")
+    public ResponseEntity<ApiResponse<TokenResponse>> guestLogin() {
+        TokenResponse response = authService.guestLogin();
+        return ResponseEntity.ok(ApiResponse.ok(response, "둘러보기로 로그인되었습니다."));
+    }
+
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<TokenResponse>> refresh(@Valid @RequestBody RefreshRequest request) {
         TokenResponse response = authService.refresh(request.refreshToken());

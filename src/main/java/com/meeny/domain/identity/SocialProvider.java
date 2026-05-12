@@ -1,5 +1,5 @@
 package com.meeny.domain.identity;
 
 public enum SocialProvider {
-    GOOGLE, KAKAO, APPLE
+    GOOGLE, KAKAO, APPLE, GUEST
 }
