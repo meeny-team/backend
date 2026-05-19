@@ -6,6 +6,9 @@ import com.meeny.domain.activity.crew.Crew;
 import com.meeny.domain.activity.crew.CrewRepository;
 import com.meeny.domain.activity.pin.Pin;
 import com.meeny.domain.activity.pin.PinRepository;
+import com.meeny.domain.activity.pin.PinTransferMark;
+import com.meeny.domain.activity.pin.PinTransferMarkRepository;
+import com.meeny.domain.activity.pin.Split;
 import com.meeny.domain.activity.play.Play;
 import com.meeny.domain.activity.play.PlayRepository;
 import com.meeny.domain.activity.pin.MemberBalance;
@@ -31,8 +34,10 @@ public class PlaySettlementService {
     private final PinRepository pinRepository;
     private final CrewRepository crewRepository;
     private final MemberRepository memberRepository;
+    private final PinTransferMarkRepository pinTransferMarkRepository;
 
-    // 정산 마감: 작성자만 가능, 모든 잔액이 0이어야 마감 가능. 마감 후엔 핀/멤버 mutation이 모두 차단됨
+    // 정산 마감: 작성자만 가능. 모든 (paidBy != fromId, amount > 0) split 이 received 마킹되어 있어야 마감 가능.
+    // 마감 후엔 핀/멤버 mutation 이 모두 차단됨.
     @Transactional
     public PlaySettlementResponse close(Long playId, Long memberId) {
         Play play = playRepository.findById(playId)
@@ -42,14 +47,15 @@ public class PlaySettlementService {
         crew.verifyMember(memberId);
 
         List<Pin> pins = pinRepository.findAllByPlayId(playId);
-        PlaySettlementResult result = PlaySettlementResult.of(play.getMemberIds(), pins);
-        if (result.memberBalances().stream().anyMatch(b -> b.balance() != 0L)) {
+        List<PinTransferMark> marks = loadMarks(pins);
+        if (!allTransfersReceived(pins, marks)) {
             throw new BusinessException(ErrorCode.PLAY_NOT_SETTLEABLE);
         }
 
         play.close(memberId);
+        PlaySettlementResult result = PlaySettlementResult.of(play.getMemberIds(), pins);
         Map<Long, String> nicknames = loadDisplayNicknames(result);
-        return PlaySettlementResponse.from(playId, play.getSettledAt(), result, nicknames);
+        return PlaySettlementResponse.from(playId, play.getSettledAt(), result, pins, marks, nicknames);
     }
 
     // Play 단위 정산 계산: 모든 핀의 결제/분배를 합산해 멤버별 잔액과 송금 내역을 산출, 닉네임은 일괄 조회로 주입
@@ -61,9 +67,121 @@ public class PlaySettlementService {
         crew.verifyMember(memberId);
 
         List<Pin> pins = pinRepository.findAllByPlayId(playId);
+        List<PinTransferMark> marks = loadMarks(pins);
         PlaySettlementResult result = PlaySettlementResult.of(play.getMemberIds(), pins);
         Map<Long, String> nicknames = loadDisplayNicknames(result);
-        return PlaySettlementResponse.from(playId, play.getSettledAt(), result, nicknames);
+        return PlaySettlementResponse.from(playId, play.getSettledAt(), result, pins, marks, nicknames);
+    }
+
+    // 송신자가 "보냈음" 표시. 권한: from = caller. row 없으면 생성, 있으면 idempotent.
+    @Transactional
+    public PlaySettlementResponse markTransferSent(Long playId, Long pinId, Long fromMemberId, Long toMemberId, Long callerId) {
+        if (!fromMemberId.equals(callerId)) {
+            throw new BusinessException(ErrorCode.TRANSFER_FORBIDDEN);
+        }
+        Pin pin = preparePinForMark(playId, pinId, callerId);
+        verifyTransferExists(pin, fromMemberId, toMemberId);
+
+        pinTransferMarkRepository
+                .findByPinIdAndFromMemberIdAndToMemberId(pinId, fromMemberId, toMemberId)
+                .orElseGet(() -> pinTransferMarkRepository.save(
+                        PinTransferMark.createSent(pinId, fromMemberId, toMemberId)));
+
+        return calculate(playId, callerId);
+    }
+
+    // 수신자(paidBy) 가 "받았음" 표시. 권한: to = caller. sent row 가 있어야 함.
+    @Transactional
+    public PlaySettlementResponse markTransferReceived(Long playId, Long pinId, Long fromMemberId, Long toMemberId, Long callerId) {
+        if (!toMemberId.equals(callerId)) {
+            throw new BusinessException(ErrorCode.TRANSFER_FORBIDDEN);
+        }
+        Pin pin = preparePinForMark(playId, pinId, callerId);
+        verifyTransferExists(pin, fromMemberId, toMemberId);
+
+        PinTransferMark mark = pinTransferMarkRepository
+                .findByPinIdAndFromMemberIdAndToMemberId(pinId, fromMemberId, toMemberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TRANSFER_NOT_FOUND));
+        mark.markReceived();
+
+        return calculate(playId, callerId);
+    }
+
+    // 송신자가 "보냈음" 을 취소. 권한: from = caller. received 이후엔 거절. row 자체 삭제.
+    @Transactional
+    public PlaySettlementResponse cancelTransferSent(Long playId, Long pinId, Long fromMemberId, Long toMemberId, Long callerId) {
+        if (!fromMemberId.equals(callerId)) {
+            throw new BusinessException(ErrorCode.TRANSFER_FORBIDDEN);
+        }
+        preparePinForMark(playId, pinId, callerId);
+
+        PinTransferMark mark = pinTransferMarkRepository
+                .findByPinIdAndFromMemberIdAndToMemberId(pinId, fromMemberId, toMemberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TRANSFER_NOT_FOUND));
+        mark.verifyCancellable();
+        pinTransferMarkRepository.delete(mark);
+
+        return calculate(playId, callerId);
+    }
+
+    // 마킹 endpoint 공통 전처리: play 존재/멤버/mutable + pin 존재/소속 검증
+    private Pin preparePinForMark(Long playId, Long pinId, Long callerId) {
+        Play play = playRepository.findById(playId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PLAY_NOT_FOUND));
+        Crew crew = crewRepository.findById(play.getCrewId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.CREW_NOT_FOUND));
+        crew.verifyMember(callerId);
+        play.verifyMutable();
+
+        Pin pin = pinRepository.findById(pinId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PIN_NOT_FOUND));
+        if (!pin.getPlayId().equals(playId)) {
+            throw new BusinessException(ErrorCode.PIN_NOT_FOUND);
+        }
+        return pin;
+    }
+
+    // pin 의 splits 에 (fromMemberId → paidBy=toMemberId) 송금이 실제 존재해야 마킹 가능
+    private void verifyTransferExists(Pin pin, Long fromMemberId, Long toMemberId) {
+        Long paidBy = pin.getSettlement().getPaidBy();
+        if (!paidBy.equals(toMemberId)) {
+            throw new BusinessException(ErrorCode.TRANSFER_INVALID_SPLIT);
+        }
+        boolean exists = pin.getSplits().stream()
+                .anyMatch(s -> s.getUserId().equals(fromMemberId) && s.getAmount() > 0);
+        if (!exists) {
+            throw new BusinessException(ErrorCode.TRANSFER_INVALID_SPLIT);
+        }
+    }
+
+    // 모든 pin 의 모든 (fromMemberId, paidBy) split 이 received 마킹됨을 확인. 송금이 0건이면 true.
+    private boolean allTransfersReceived(List<Pin> pins, List<PinTransferMark> marks) {
+        Map<String, PinTransferMark> markMap = marks.stream()
+                .collect(Collectors.toMap(
+                        m -> markKey(m.getPinId(), m.getFromMemberId(), m.getToMemberId()),
+                        m -> m
+                ));
+        for (Pin pin : pins) {
+            Long paidBy = pin.getSettlement().getPaidBy();
+            for (Split split : pin.getSplits()) {
+                if (split.getUserId().equals(paidBy) || split.getAmount() <= 0) continue;
+                PinTransferMark mark = markMap.get(markKey(pin.getId(), split.getUserId(), paidBy));
+                if (mark == null || !mark.isReceived()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private List<PinTransferMark> loadMarks(List<Pin> pins) {
+        if (pins.isEmpty()) return List.of();
+        List<Long> pinIds = pins.stream().map(Pin::getId).toList();
+        return pinTransferMarkRepository.findAllByPinIdIn(pinIds);
+    }
+
+    private static String markKey(Long pinId, Long fromMemberId, Long toMemberId) {
+        return pinId + ":" + fromMemberId + ":" + toMemberId;
     }
 
     // 결과에 등장하는 모든 멤버 ID(탈퇴자 포함)를 한 번에 조회해 표시용 닉네임 맵 생성
