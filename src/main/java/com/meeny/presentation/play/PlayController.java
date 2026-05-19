@@ -74,4 +74,38 @@ public class PlayController {
             @PathVariable Long playId) {
         return ResponseEntity.ok(ApiResponse.ok(playSettlementService.close(playId, memberId), "정산이 마감되었습니다."));
     }
+
+    // 핀 단위 송금 마킹: from = 송신자, to = 결제자(paidBy)
+    @PostMapping("/api/plays/{playId}/pins/{pinId}/transfers/{fromMemberId}/{toMemberId}/sent")
+    public ResponseEntity<ApiResponse<PlaySettlementResponse>> markTransferSent(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long playId,
+            @PathVariable Long pinId,
+            @PathVariable Long fromMemberId,
+            @PathVariable Long toMemberId) {
+        PlaySettlementResponse res = playSettlementService.markTransferSent(playId, pinId, fromMemberId, toMemberId, memberId);
+        return ResponseEntity.ok(ApiResponse.ok(res));
+    }
+
+    @DeleteMapping("/api/plays/{playId}/pins/{pinId}/transfers/{fromMemberId}/{toMemberId}/sent")
+    public ResponseEntity<ApiResponse<PlaySettlementResponse>> cancelTransferSent(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long playId,
+            @PathVariable Long pinId,
+            @PathVariable Long fromMemberId,
+            @PathVariable Long toMemberId) {
+        PlaySettlementResponse res = playSettlementService.cancelTransferSent(playId, pinId, fromMemberId, toMemberId, memberId);
+        return ResponseEntity.ok(ApiResponse.ok(res));
+    }
+
+    @PostMapping("/api/plays/{playId}/pins/{pinId}/transfers/{fromMemberId}/{toMemberId}/received")
+    public ResponseEntity<ApiResponse<PlaySettlementResponse>> markTransferReceived(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long playId,
+            @PathVariable Long pinId,
+            @PathVariable Long fromMemberId,
+            @PathVariable Long toMemberId) {
+        PlaySettlementResponse res = playSettlementService.markTransferReceived(playId, pinId, fromMemberId, toMemberId, memberId);
+        return ResponseEntity.ok(ApiResponse.ok(res));
+    }
 }
