@@ -1,7 +1,9 @@
 package com.meeny.presentation.crew;
 
+import com.meeny.application.activity.ActivityQueryService;
 import com.meeny.application.crew.CrewService;
 import com.meeny.common.response.ApiResponse;
+import com.meeny.presentation.activity.dto.ActivityResponse;
 import com.meeny.presentation.crew.dto.CreateCrewRequest;
 import com.meeny.presentation.crew.dto.CrewResponse;
 import com.meeny.presentation.crew.dto.JoinByCodeRequest;
@@ -20,6 +22,10 @@ import java.util.List;
 public class CrewController {
 
     private final CrewService crewService;
+    private final ActivityQueryService activityQueryService;
+
+    private static final int ACTIVITY_DEFAULT_LIMIT = 50;
+    private static final int ACTIVITY_MAX_LIMIT = 200;
 
     @PostMapping
     public ResponseEntity<ApiResponse<CrewResponse>> create(
@@ -65,5 +71,15 @@ public class CrewController {
             @PathVariable Long crewId) {
         crewService.leave(crewId, memberId);
         return ResponseEntity.noContent().build();
+    }
+
+    // 크루 활동 피드 — 멤버만, 최신순 N 건 (default 50, max 200)
+    @GetMapping("/{crewId}/activities")
+    public ResponseEntity<ApiResponse<List<ActivityResponse>>> getActivities(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long crewId,
+            @RequestParam(value = "limit", required = false) Integer limit) {
+        int effective = limit == null ? ACTIVITY_DEFAULT_LIMIT : Math.max(1, Math.min(limit, ACTIVITY_MAX_LIMIT));
+        return ResponseEntity.ok(ApiResponse.ok(activityQueryService.fetchByCrew(crewId, memberId, effective)));
     }
 }

@@ -1,10 +1,12 @@
 package com.meeny.application.crew;
 
+import com.meeny.application.activity.ActivityLogService;
 import com.meeny.common.exception.BusinessException;
 import com.meeny.common.exception.ErrorCode;
 import com.meeny.domain.activity.crew.Crew;
 import com.meeny.domain.activity.crew.CrewRepository;
 import com.meeny.domain.activity.crew.InviteCode;
+import com.meeny.domain.activity.log.ActivityType;
 import com.meeny.domain.activity.pin.Pin;
 import com.meeny.domain.activity.pin.PinRepository;
 import com.meeny.domain.activity.pin.PlaySettlementResult;
@@ -21,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +37,7 @@ public class CrewService {
     private final PinRepository pinRepository;
     private final MemberRepository memberRepository;
     private final S3UrlSigner imageSigner;
+    private final ActivityLogService activityLogService;
 
     // 크루 생성: 중복 없는 초대 코드를 발급하고 크루를 저장
     @Transactional
@@ -63,6 +67,7 @@ public class CrewService {
         Crew crew = crewRepository.findByInviteCode(inviteCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INVITE_CODE));
         crew.join(memberId);
+        activityLogService.record(crew.getId(), memberId, ActivityType.CREW_JOINED, null);
         return toResponse(crew);
     }
 
@@ -72,6 +77,7 @@ public class CrewService {
         Crew crew = findCrew(crewId);
         verifyNoOutstandingBalance(crewId, memberId);
         crew.leave(memberId);
+        activityLogService.record(crewId, memberId, ActivityType.MEMBER_LEFT, null);
     }
 
     private void verifyNoOutstandingBalance(Long crewId, Long memberId) {
