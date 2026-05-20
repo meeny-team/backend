@@ -1,9 +1,11 @@
 package com.meeny.application.pin;
 
+import com.meeny.application.activity.ActivityLogService;
 import com.meeny.common.exception.BusinessException;
 import com.meeny.common.exception.ErrorCode;
 import com.meeny.domain.activity.crew.Crew;
 import com.meeny.domain.activity.crew.CrewRepository;
+import com.meeny.domain.activity.log.ActivityType;
 import com.meeny.domain.activity.pin.Pin;
 import com.meeny.domain.activity.pin.PinRepository;
 import com.meeny.domain.activity.pin.Split;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +32,7 @@ public class PinService {
     private final PlayRepository playRepository;
     private final CrewRepository crewRepository;
     private final S3UrlSigner imageSigner;
+    private final ActivityLogService activityLogService;
 
     // 핀 생성: 작성자가 Play 멤버인지 검증한 뒤 정산 정보까지 포함해 저장; 마감된 Play엔 추가 불가
     @Transactional
@@ -52,7 +56,11 @@ public class PinService {
                 splits,
                 play.getMemberIds()
         );
-        return PinResponse.from(pinRepository.save(pin), imageSigner);
+        Pin saved = pinRepository.save(pin);
+        activityLogService.record(play.getCrewId(), authorId, ActivityType.PIN_ADDED,
+                Map.of("playId", play.getId(), "pinId", saved.getId(),
+                        "pinTitle", saved.getTitle(), "amount", saved.getAmount()));
+        return PinResponse.from(saved, imageSigner);
     }
 
     // 특정 Play에 속한 핀 목록 조회 (크루 멤버에게만 노출)
@@ -95,6 +103,9 @@ public class PinService {
                 splits,
                 play.getMemberIds()
         );
+        activityLogService.record(play.getCrewId(), memberId, ActivityType.PIN_UPDATED,
+                Map.of("playId", play.getId(), "pinId", pin.getId(),
+                        "pinTitle", pin.getTitle(), "amount", pin.getAmount()));
         return PinResponse.from(pin, imageSigner);
     }
 
@@ -105,7 +116,12 @@ public class PinService {
         Play play = findPlay(pin.getPlayId());
         play.verifyMutable();
         pin.verifyAuthor(memberId);
+        // 삭제 전에 메타데이터 캡처 — pinRepository.delete 이후엔 getTitle/getAmount 접근 불가할 수 있음
+        Map<String, Object> snapshot = Map.of(
+                "playId", play.getId(), "pinId", pin.getId(),
+                "pinTitle", pin.getTitle(), "amount", pin.getAmount());
         pinRepository.delete(pin);
+        activityLogService.record(play.getCrewId(), memberId, ActivityType.PIN_DELETED, snapshot);
     }
 
     private Pin findPin(Long pinId) {

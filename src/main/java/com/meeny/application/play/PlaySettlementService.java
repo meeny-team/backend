@@ -1,9 +1,11 @@
 package com.meeny.application.play;
 
+import com.meeny.application.activity.ActivityLogService;
 import com.meeny.common.exception.BusinessException;
 import com.meeny.common.exception.ErrorCode;
 import com.meeny.domain.activity.crew.Crew;
 import com.meeny.domain.activity.crew.CrewRepository;
+import com.meeny.domain.activity.log.ActivityType;
 import com.meeny.domain.activity.pin.Pin;
 import com.meeny.domain.activity.pin.PinRepository;
 import com.meeny.domain.activity.pin.PinTransferMark;
@@ -35,6 +37,7 @@ public class PlaySettlementService {
     private final CrewRepository crewRepository;
     private final MemberRepository memberRepository;
     private final PinTransferMarkRepository pinTransferMarkRepository;
+    private final ActivityLogService activityLogService;
 
     // 정산 마감: 작성자만 가능. 모든 (paidBy != fromId, amount > 0) split 이 received 마킹되어 있어야 마감 가능.
     // 마감 후엔 핀/멤버 mutation 이 모두 차단됨.
@@ -53,6 +56,8 @@ public class PlaySettlementService {
         }
 
         play.close(memberId);
+        activityLogService.record(play.getCrewId(), memberId, ActivityType.PLAY_SETTLED,
+                Map.of("playId", playId, "playTitle", play.getTitle()));
         PlaySettlementResult result = PlaySettlementResult.of(play.getMemberIds(), pins);
         Map<Long, String> nicknames = loadDisplayNicknames(result);
         return PlaySettlementResponse.from(playId, play.getSettledAt(), result, pins, marks, nicknames);
@@ -82,10 +87,17 @@ public class PlaySettlementService {
         Pin pin = preparePinForMark(playId, pinId, callerId);
         verifyTransferExists(pin, fromMemberId, toMemberId);
 
-        pinTransferMarkRepository
+        boolean created = pinTransferMarkRepository
                 .findByPinIdAndFromMemberIdAndToMemberId(pinId, fromMemberId, toMemberId)
-                .orElseGet(() -> pinTransferMarkRepository.save(
-                        PinTransferMark.createSent(pinId, fromMemberId, toMemberId)));
+                .isEmpty();
+        if (created) {
+            pinTransferMarkRepository.save(PinTransferMark.createSent(pinId, fromMemberId, toMemberId));
+            long amount = transferAmount(pin, fromMemberId);
+            activityLogService.record(preparePinCrew(pin), callerId, ActivityType.TRANSFER_SENT,
+                    Map.of("playId", playId, "pinId", pinId, "pinTitle", pin.getTitle(),
+                            "fromMemberId", fromMemberId, "toMemberId", toMemberId, "amount", amount));
+        }
+        // 이미 sent 상태였으면 idempotent — 로그 중복 적재 안 함
 
         return calculate(playId, callerId);
     }
@@ -103,6 +115,10 @@ public class PlaySettlementService {
                 .findByPinIdAndFromMemberIdAndToMemberId(pinId, fromMemberId, toMemberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.TRANSFER_NOT_FOUND));
         mark.markReceived();
+        long amount = transferAmount(pin, fromMemberId);
+        activityLogService.record(preparePinCrew(pin), callerId, ActivityType.TRANSFER_RECEIVED,
+                Map.of("playId", playId, "pinId", pinId, "pinTitle", pin.getTitle(),
+                        "fromMemberId", fromMemberId, "toMemberId", toMemberId, "amount", amount));
 
         return calculate(playId, callerId);
     }
@@ -182,6 +198,21 @@ public class PlaySettlementService {
 
     private static String markKey(Long pinId, Long fromMemberId, Long toMemberId) {
         return pinId + ":" + fromMemberId + ":" + toMemberId;
+    }
+
+    // pin → crewId 한 번 더 조회. 활동 로그 적재 시 crewId 필요.
+    private Long preparePinCrew(Pin pin) {
+        return playRepository.findById(pin.getPlayId())
+                .map(Play::getCrewId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PLAY_NOT_FOUND));
+    }
+
+    // pin 의 splits 에서 fromMemberId 의 분담액 합산 (보통 1건)
+    private long transferAmount(Pin pin, Long fromMemberId) {
+        return pin.getSplits().stream()
+                .filter(s -> s.getUserId().equals(fromMemberId))
+                .mapToLong(Split::getAmount)
+                .sum();
     }
 
     // 결과에 등장하는 모든 멤버 ID(탈퇴자 포함)를 한 번에 조회해 표시용 닉네임 맵 생성

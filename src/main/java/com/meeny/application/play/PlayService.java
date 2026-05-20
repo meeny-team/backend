@@ -1,9 +1,11 @@
 package com.meeny.application.play;
 
+import com.meeny.application.activity.ActivityLogService;
 import com.meeny.common.exception.BusinessException;
 import com.meeny.common.exception.ErrorCode;
 import com.meeny.domain.activity.crew.Crew;
 import com.meeny.domain.activity.crew.CrewRepository;
+import com.meeny.domain.activity.log.ActivityType;
 import com.meeny.domain.activity.pin.Pin;
 import com.meeny.domain.activity.pin.PinRepository;
 import com.meeny.domain.activity.pin.PlaySettlementResult;
@@ -21,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -33,6 +36,7 @@ public class PlayService {
     private final PinRepository pinRepository;
     private final MemberRepository memberRepository;
     private final S3UrlSigner imageSigner;
+    private final ActivityLogService activityLogService;
 
     // Play 생성: 크루 멤버 검증 후, 참여자가 모두 크루에 속하는지 확인하고 저장 (생성자는 자동 포함)
     @Transactional
@@ -55,7 +59,10 @@ public class PlayService {
                 request.tags(),
                 request.coverImage()
         );
-        return toResponse(playRepository.save(play));
+        Play saved = playRepository.save(play);
+        activityLogService.record(crew.getId(), creatorId, ActivityType.PLAY_CREATED,
+                Map.of("playId", saved.getId(), "playTitle", saved.getTitle()));
+        return toResponse(saved);
     }
 
     // 특정 크루의 Play 목록 조회 (크루 멤버에게만 노출)
