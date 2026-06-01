@@ -44,6 +44,12 @@ dependencies {
 
 	implementation platform('software.amazon.awssdk:bom:2.28.16')
 	implementation 'software.amazon.awssdk:s3'
+	// Secrets Manager plugin 이 런타임에 secret 을 가져오기 위해 필요.
+	implementation 'software.amazon.awssdk:secretsmanager'
+
+	// AWS Advanced JDBC Wrapper — RDS-managed master credential 회전 시
+	// HikariCP connection fail 후 wrapper 가 SecretsManager 에서 새 값을 재fetch 해 무중단.
+	implementation 'software.amazon.jdbc:aws-advanced-jdbc-wrapper:2.5.4'
 
 	runtimeOnly 'com.h2database:h2'
 	runtimeOnly 'org.postgresql:postgresql'

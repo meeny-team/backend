@@ -1,0 +1,26 @@
+# prod 위에 얹는 sub-profile — SPRING_PROFILES_ACTIVE=prod,prod-wrapper 일 때만 활성.
+# RDS master credential 회전 시 backend 가 옛 비밀번호로 죽지 않도록 AWS Advanced JDBC Wrapper
+# 의 awsSecretsManager plugin 을 통해 connection 시점마다 Secrets Manager 에서 username/password
+# 를 동적으로 주입한다. RDS-managed rotation 의 1시간 dual-validity 안에 wrapper 가 새 값으로
+# reconnect → 무중단.
+#
+# 옛 prod 단일 profile 과 공존하기 위한 분리: 이 yaml 이 없는 옛 backend 이미지는
+# SPRING_PROFILES_ACTIVE 가 "prod,prod-wrapper" 여도 prod-wrapper 가 단순히 무시되어 옛 동작.
+# 새 이미지에 이 yaml 이 있으면 datasource 가 wrapper 모드로 override 된다.
+spring:
+  datasource:
+    # DB_URL env 는 옛 형식(jdbc:postgresql://...)을 유지하고, 여기서 wrapper prefix 를 가진
+    # 운영 URL 을 그대로 박아둔다. 이렇게 두면 IaC 측 env 변경 면적이 작아지고, 옛 backend
+    # 이미지의 부팅도 깨지지 않는다 (옛 backend 는 이 yaml 자체를 로드하지 않으므로).
+    url: jdbc:aws-wrapper:postgresql://meeny-prod-postgres.cr8caewyo1rg.ap-northeast-2.rds.amazonaws.com:5432/meeny
+    driver-class-name: software.amazon.jdbc.Driver
+    # username/password 는 wrapper 의 awsSecretsManager plugin 이 secret 의 username/password
+    # 키에서 자동 주입한다.
+    hikari:
+      data-source-properties:
+        wrapperPlugins: awsSecretsManager
+        secretsManagerRegion: ${AWS_REGION:ap-northeast-2}
+        secretsManagerSecretId: ${RDS_SECRET_ARN}
+      # wrapper 가 던지는 일부 SQLException 을 HikariCP 가 영구 손상으로 오인해
+      # connection 을 폐기하지 않도록 핸들러 override.
+      exception-override-class-name: software.amazon.jdbc.util.HikariCPSQLException
