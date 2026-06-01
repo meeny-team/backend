@@ -87,3 +87,11 @@ aws:
     secret-access-key: ${AWS_S3_SECRET_ACCESS_KEY:}
     presigned-url-expiry-minutes: ${AWS_S3_PRESIGNED_URL_EXPIRY_MINUTES:10}
     read-url-expiry-minutes: ${AWS_S3_READ_URL_EXPIRY_MINUTES:60}
+
+# Sentry: dsn 비어 있으면 SDK 가 자동으로 비활성 (init no-op). dev/test 에선 prod 서버로 이벤트 안 가게 기본 빈값.
+# 운영 활성화는 application-prod.yaml 에서 DSN + environment 덮어쓰기.
+sentry:
+  dsn: ${SENTRY_DSN:}
+  send-default-pii: false
+  # Authorization 헤더 / JWT / DB password 같은 민감 토큰을 SentryConfig 의 BeforeSendCallback 으로 직접 스크럽한다.
+  enable-tracing: false
