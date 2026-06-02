@@ -3,6 +3,7 @@ package com.meeny.domain.activity.log;
 public enum ActivityType {
     CREW_JOINED,                // 새 멤버가 초대 코드로 참여
     MEMBER_LEFT,                // 멤버가 자발적으로 탈퇴
+    CREW_OWNERSHIP_TRANSFERRED, // 크루 소유권 양도
     PLAY_CREATED,               // 새 플레이 생성
     PLAY_SETTLED,               // 플레이 정산 마감
     PLAY_FORCE_SETTLED,         // 미수신 송금이 남아있는 상태에서 작성자가 강제 마감

@@ -57,6 +57,18 @@ public class CrewController {
         return ResponseEntity.ok(ApiResponse.ok(crew, "크루가 수정되었습니다."));
     }
 
+    // 소유권 양도: 현재 owner → 크루 멤버. body { newOwnerId }
+    @PostMapping("/{crewId}/owner")
+    public ResponseEntity<ApiResponse<CrewResponse>> transferOwnership(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long crewId,
+            @Valid @RequestBody TransferOwnershipRequest request) {
+        CrewResponse crew = crewService.transferOwnership(crewId, memberId, request.newOwnerId());
+        return ResponseEntity.ok(ApiResponse.ok(crew, "소유권이 양도되었습니다."));
+    }
+
+    public record TransferOwnershipRequest(@jakarta.validation.constraints.NotNull Long newOwnerId) {}
+
     @PostMapping("/join")
     public ResponseEntity<ApiResponse<CrewResponse>> joinByCode(
             @AuthenticationPrincipal Long memberId,
