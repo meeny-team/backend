@@ -13,19 +13,23 @@ import com.meeny.domain.activity.pin.PinRepository;
 import com.meeny.domain.activity.pin.Split;
 import com.meeny.domain.activity.play.Play;
 import com.meeny.domain.activity.play.PlayRepository;
+import com.meeny.infrastructure.aws.S3CleanupEvent;
 import com.meeny.infrastructure.aws.S3UrlSigner;
 import com.meeny.presentation.pin.dto.CreatePinRequest;
 import com.meeny.presentation.pin.dto.PinResponse;
 import com.meeny.presentation.pin.dto.SplitDto;
 import com.meeny.presentation.pin.dto.UpdatePinRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +41,7 @@ public class PinService {
     private final CrewRepository crewRepository;
     private final S3UrlSigner imageSigner;
     private final ActivityLogService activityLogService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // 핀 생성: 작성자가 Play 멤버인지 검증한 뒤 정산 정보까지 포함해 저장; 마감된 Play엔 추가 불가
     @Transactional
@@ -94,6 +99,7 @@ public class PinService {
     }
 
     // 핀 수정: 작성자 권한 검증과 정산/분배 갱신은 도메인에서 수행; 마감된 Play의 핀은 수정 불가
+    // 이미지가 교체되면서 빠진 객체는 S3 cleanup 이벤트로 비동기 정리(orphan 방지)
     @Transactional
     public PinResponse update(Long pinId, Long memberId, UpdatePinRequest request) {
         Pin pin = findPin(pinId);
@@ -104,6 +110,12 @@ public class PinService {
                 ? null
                 : request.splits().stream().map(SplitDto::toDomain).toList();
 
+        List<String> previousImages = pin.getImages() == null ? List.of() : List.copyOf(pin.getImages());
+        // 클라이언트가 signed URL 을 그대로 돌려보내도 raw 와 매칭 가능하도록 query string 만 제거
+        List<String> normalizedImages = request.images() == null
+                ? null
+                : request.images().stream().map(PinService::stripQuery).toList();
+
         pin.updateBy(
                 memberId,
                 request.amount(),
@@ -111,7 +123,7 @@ public class PinService {
                 request.title(),
                 request.memo(),
                 request.location(),
-                request.images(),
+                normalizedImages,
                 request.settlement() == null ? null : request.settlement().toDomain(),
                 splits,
                 play.getMemberIds()
@@ -119,6 +131,7 @@ public class PinService {
         activityLogService.record(play.getCrewId(), memberId, ActivityType.PIN_UPDATED,
                 Map.of("playId", play.getId(), "pinId", pin.getId(),
                         "pinTitle", pin.getTitle(), "amount", pin.getAmount()));
+        publishCleanup(previousImages, normalizedImages);
         return PinResponse.from(pin, imageSigner);
     }
 
@@ -133,8 +146,29 @@ public class PinService {
         Map<String, Object> snapshot = Map.of(
                 "playId", play.getId(), "pinId", pin.getId(),
                 "pinTitle", pin.getTitle(), "amount", pin.getAmount());
+        List<String> imagesToCleanup = pin.getImages() == null ? List.of() : List.copyOf(pin.getImages());
         pinRepository.delete(pin);
         activityLogService.record(play.getCrewId(), memberId, ActivityType.PIN_DELETED, snapshot);
+        if (!imagesToCleanup.isEmpty()) {
+            eventPublisher.publishEvent(new S3CleanupEvent(imagesToCleanup));
+        }
+    }
+
+    private void publishCleanup(List<String> previousImages, List<String> newImages) {
+        if (newImages == null) return; // images 필드를 안 보냈으면 유지 — orphan 없음
+        Set<String> kept = new HashSet<>(newImages);
+        List<String> orphans = previousImages.stream()
+                .filter(url -> !kept.contains(url))
+                .toList();
+        if (!orphans.isEmpty()) {
+            eventPublisher.publishEvent(new S3CleanupEvent(orphans));
+        }
+    }
+
+    private static String stripQuery(String url) {
+        if (url == null) return null;
+        int q = url.indexOf('?');
+        return q < 0 ? url : url.substring(0, q);
     }
 
     private Pin findPin(Long pinId) {

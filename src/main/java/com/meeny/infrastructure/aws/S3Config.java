@@ -10,6 +10,7 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 @Configuration
@@ -40,6 +41,29 @@ public class S3Config {
         }
 
         return S3Presigner.builder()
+                .region(region)
+                .credentialsProvider(credentialsProvider)
+                .build();
+    }
+
+    // S3 객체 삭제용 클라이언트 (orphan 정리). Presigner 와 동일 credential 전략.
+    @Bean
+    public S3Client s3Client() {
+        Region region = Region.of(properties.region() == null || properties.region().isBlank()
+                ? "ap-northeast-2"
+                : properties.region());
+
+        AwsCredentialsProvider credentialsProvider;
+        if (properties.hasStaticCredentials()) {
+            credentialsProvider = StaticCredentialsProvider.create(AwsBasicCredentials.create(
+                    properties.accessKeyId(), properties.secretAccessKey()));
+        } else if (properties.isConfigured()) {
+            credentialsProvider = DefaultCredentialsProvider.create();
+        } else {
+            credentialsProvider = AnonymousCredentialsProvider.create();
+        }
+
+        return S3Client.builder()
                 .region(region)
                 .credentialsProvider(credentialsProvider)
                 .build();
