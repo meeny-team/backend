@@ -33,6 +33,7 @@ public enum ErrorCode {
     TRANSFER_FORBIDDEN(HttpStatus.FORBIDDEN, "해당 송금의 당사자만 변경할 수 있습니다."),
     TRANSFER_NOT_FOUND(HttpStatus.NOT_FOUND, "아직 보냈음으로 표시되지 않은 송금입니다."),
     TRANSFER_ALREADY_RECEIVED(HttpStatus.CONFLICT, "이미 받음 처리된 송금은 변경할 수 없습니다."),
+    TRANSFER_NOT_RECEIVED(HttpStatus.CONFLICT, "아직 받음 처리되지 않은 송금입니다."),
     UPLOAD_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "업로드 스토리지가 구성되지 않았습니다."),
     UPLOAD_INVALID_CONTENT_TYPE(HttpStatus.BAD_REQUEST, "허용되지 않는 이미지 형식입니다."),
     UPLOAD_INVALID_PURPOSE(HttpStatus.BAD_REQUEST, "지원하지 않는 업로드 용도입니다."),

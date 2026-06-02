@@ -63,6 +63,33 @@ public class PlaySettlementService {
         return PlaySettlementResponse.from(playId, play.getSettledAt(), result, pins, marks, nicknames);
     }
 
+    // 작성자 강제 마감: 모든 송금이 received 되지 않아도 마감. 미수신 송금 카운트를 ActivityLog 에 남겨 감사 추적 가능.
+    // 사용 시나리오: 수신자가 받음 체크를 안 해줘서 정산이 영구 lock 되는 데드락 해소.
+    @Transactional
+    public PlaySettlementResponse forceClose(Long playId, Long memberId, String reason) {
+        Play play = playRepository.findById(playId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PLAY_NOT_FOUND));
+        Crew crew = crewRepository.findById(play.getCrewId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.CREW_NOT_FOUND));
+        crew.verifyMember(memberId);
+
+        List<Pin> pins = pinRepository.findAllByPlayId(playId);
+        List<PinTransferMark> marks = loadMarks(pins);
+        int unreceived = countUnreceivedTransfers(pins, marks);
+
+        play.close(memberId); // Play.close 가 verifyAuthor + 중복 마감 가드 수행
+        activityLogService.record(play.getCrewId(), memberId, ActivityType.PLAY_FORCE_SETTLED,
+                Map.of(
+                        "playId", playId,
+                        "playTitle", play.getTitle(),
+                        "unreceivedTransferCount", unreceived,
+                        "reason", reason == null ? "" : reason
+                ));
+        PlaySettlementResult result = PlaySettlementResult.of(play.getMemberIds(), pins);
+        Map<Long, String> nicknames = loadDisplayNicknames(result);
+        return PlaySettlementResponse.from(playId, play.getSettledAt(), result, pins, marks, nicknames);
+    }
+
     // Play 단위 정산 계산: 모든 핀의 결제/분배를 합산해 멤버별 잔액과 송금 내역을 산출, 닉네임은 일괄 조회로 주입
     public PlaySettlementResponse calculate(Long playId, Long memberId) {
         Play play = playRepository.findById(playId)
@@ -123,6 +150,27 @@ public class PlaySettlementService {
         return calculate(playId, callerId);
     }
 
+    // 수신자(paidBy) 가 "받음" 표시를 잘못 누른 경우 되돌림. 권한: to = caller. sent row 는 유지(수신자만 다시 받음 표시 가능).
+    @Transactional
+    public PlaySettlementResponse cancelTransferReceived(Long playId, Long pinId, Long fromMemberId, Long toMemberId, Long callerId) {
+        if (!toMemberId.equals(callerId)) {
+            throw new BusinessException(ErrorCode.TRANSFER_FORBIDDEN);
+        }
+        Pin pin = preparePinForMark(playId, pinId, callerId);
+        verifyTransferExists(pin, fromMemberId, toMemberId);
+
+        PinTransferMark mark = pinTransferMarkRepository
+                .findByPinIdAndFromMemberIdAndToMemberId(pinId, fromMemberId, toMemberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TRANSFER_NOT_FOUND));
+        mark.cancelReceived();
+        long amount = transferAmount(pin, fromMemberId);
+        activityLogService.record(preparePinCrew(pin), callerId, ActivityType.TRANSFER_RECEIVE_CANCELED,
+                Map.of("playId", playId, "pinId", pinId, "pinTitle", pin.getTitle(),
+                        "fromMemberId", fromMemberId, "toMemberId", toMemberId, "amount", amount));
+
+        return calculate(playId, callerId);
+    }
+
     // 송신자가 "보냈음" 을 취소. 권한: from = caller. received 이후엔 거절. row 자체 삭제.
     @Transactional
     public PlaySettlementResponse cancelTransferSent(Long playId, Long pinId, Long fromMemberId, Long toMemberId, Long callerId) {
@@ -172,22 +220,28 @@ public class PlaySettlementService {
 
     // 모든 pin 의 모든 (fromMemberId, paidBy) split 이 received 마킹됨을 확인. 송금이 0건이면 true.
     private boolean allTransfersReceived(List<Pin> pins, List<PinTransferMark> marks) {
+        return countUnreceivedTransfers(pins, marks) == 0;
+    }
+
+    // 아직 received 마킹되지 않은 (fromMemberId, paidBy) split 의 수. forceClose 의 감사 로그에 사용.
+    private int countUnreceivedTransfers(List<Pin> pins, List<PinTransferMark> marks) {
         Map<String, PinTransferMark> markMap = marks.stream()
                 .collect(Collectors.toMap(
                         m -> markKey(m.getPinId(), m.getFromMemberId(), m.getToMemberId()),
                         m -> m
                 ));
+        int unreceived = 0;
         for (Pin pin : pins) {
             Long paidBy = pin.getSettlement().getPaidBy();
             for (Split split : pin.getSplits()) {
                 if (split.getUserId().equals(paidBy) || split.getAmount() <= 0) continue;
                 PinTransferMark mark = markMap.get(markKey(pin.getId(), split.getUserId(), paidBy));
                 if (mark == null || !mark.isReceived()) {
-                    return false;
+                    unreceived++;
                 }
             }
         }
-        return true;
+        return unreceived;
     }
 
     private List<PinTransferMark> loadMarks(List<Pin> pins) {

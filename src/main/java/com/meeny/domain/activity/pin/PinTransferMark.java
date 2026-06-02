@@ -65,6 +65,14 @@ public class PinTransferMark {
         this.receivedAt = LocalDateTime.now();
     }
 
+    // 수신자가 "받음"을 잘못 눌렀을 때 되돌리기. sent 마크는 유지되어 송신자가 다시 안 누르도록 함.
+    public void cancelReceived() {
+        if (receivedAt == null) {
+            throw new BusinessException(ErrorCode.TRANSFER_NOT_RECEIVED);
+        }
+        this.receivedAt = null;
+    }
+
     // 송신자가 "취소" 를 누르려 할 때 호출. received 이후엔 거절 — service 가 delete 전에 호출.
     public void verifyCancellable() {
         if (receivedAt != null) {
