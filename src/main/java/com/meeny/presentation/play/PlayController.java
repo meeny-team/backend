@@ -2,9 +2,11 @@ package com.meeny.presentation.play;
 
 import com.meeny.application.play.PlayService;
 import com.meeny.application.play.PlaySettlementService;
+import com.meeny.application.play.PlayStatsService;
 import com.meeny.common.response.ApiResponse;
 import com.meeny.common.response.PageResponse;
 import com.meeny.domain.activity.play.PlayType;
+import com.meeny.presentation.play.dto.CategoryStatsResponse;
 import com.meeny.presentation.play.dto.CreatePlayRequest;
 import com.meeny.presentation.play.dto.PlayResponse;
 import com.meeny.presentation.play.dto.PlaySettlementResponse;
@@ -14,10 +16,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -26,6 +30,7 @@ public class PlayController {
 
     private final PlayService playService;
     private final PlaySettlementService playSettlementService;
+    private final PlayStatsService playStatsService;
 
     @PostMapping("/api/plays")
     public ResponseEntity<ApiResponse<PlayResponse>> create(
@@ -127,6 +132,22 @@ public class PlayController {
             @PathVariable Long toMemberId) {
         PlaySettlementResponse res = playSettlementService.cancelTransferSent(playId, pinId, fromMemberId, toMemberId, memberId);
         return ResponseEntity.ok(ApiResponse.ok(res));
+    }
+
+    @GetMapping("/api/plays/{playId}/stats")
+    public ResponseEntity<ApiResponse<CategoryStatsResponse>> playStats(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long playId) {
+        return ResponseEntity.ok(ApiResponse.ok(playStatsService.statsByPlay(playId, memberId)));
+    }
+
+    @GetMapping("/api/crews/{crewId}/stats")
+    public ResponseEntity<ApiResponse<CategoryStatsResponse>> crewStats(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long crewId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+        return ResponseEntity.ok(ApiResponse.ok(playStatsService.statsByCrew(crewId, memberId, from, to)));
     }
 
     @PostMapping("/api/plays/{playId}/pins/{pinId}/transfers/{fromMemberId}/{toMemberId}/received")
