@@ -75,6 +75,20 @@ public class PlayController {
         return ResponseEntity.ok(ApiResponse.ok(playSettlementService.close(playId, memberId), "정산이 마감되었습니다."));
     }
 
+    // 작성자 강제 마감: 미수신 송금이 남아 있어도 마감 (데드락 해소용). reason 은 감사 로그에 기록.
+    @PostMapping("/api/plays/{playId}/settlement/force-close")
+    public ResponseEntity<ApiResponse<PlaySettlementResponse>> forceCloseSettlement(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long playId,
+            @RequestBody(required = false) ForceCloseSettlementRequest request) {
+        String reason = request == null ? null : request.reason();
+        return ResponseEntity.ok(ApiResponse.ok(
+                playSettlementService.forceClose(playId, memberId, reason),
+                "정산이 강제로 마감되었습니다."));
+    }
+
+    public record ForceCloseSettlementRequest(String reason) {}
+
     // 핀 단위 송금 마킹: from = 송신자, to = 결제자(paidBy)
     @PostMapping("/api/plays/{playId}/pins/{pinId}/transfers/{fromMemberId}/{toMemberId}/sent")
     public ResponseEntity<ApiResponse<PlaySettlementResponse>> markTransferSent(
@@ -106,6 +120,17 @@ public class PlayController {
             @PathVariable Long fromMemberId,
             @PathVariable Long toMemberId) {
         PlaySettlementResponse res = playSettlementService.markTransferReceived(playId, pinId, fromMemberId, toMemberId, memberId);
+        return ResponseEntity.ok(ApiResponse.ok(res));
+    }
+
+    @DeleteMapping("/api/plays/{playId}/pins/{pinId}/transfers/{fromMemberId}/{toMemberId}/received")
+    public ResponseEntity<ApiResponse<PlaySettlementResponse>> cancelTransferReceived(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long playId,
+            @PathVariable Long pinId,
+            @PathVariable Long fromMemberId,
+            @PathVariable Long toMemberId) {
+        PlaySettlementResponse res = playSettlementService.cancelTransferReceived(playId, pinId, fromMemberId, toMemberId, memberId);
         return ResponseEntity.ok(ApiResponse.ok(res));
     }
 }

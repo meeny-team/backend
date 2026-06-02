@@ -378,4 +378,132 @@ class PinTransferMarkTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("PLAY_NOT_SETTLEABLE"));
     }
+
+    @Test
+    @DisplayName("받음 취소 - paidBy 가 누른 received 가 되돌려져서 receivedAt 사라지고 마감 차단됨")
+    void cancelReceived_success() throws Exception {
+        Session a = login("g-tm-cr-a", "tmcra@gmail.com", "A");
+        Session b = login("g-tm-cr-b", "tmcrb@gmail.com", "B");
+        CrewCtx crew = createCrew(a.token(), "수신취소크루");
+        joinCrew(b.token(), crew.inviteCode());
+        long playId = createPlay(a.token(), crew.crewId(), Set.of(b.memberId()));
+        long pinId = createPin(a.token(), playId, 10000L, a.memberId(), List.of(
+                new SplitDto(a.memberId(), 5000L),
+                new SplitDto(b.memberId(), 5000L)
+        ));
+
+        mockMvc.perform(post(sentUrl(playId, pinId, b.memberId(), a.memberId()))
+                        .header("Authorization", "Bearer " + b.token()))
+                .andExpect(status().isOk());
+        mockMvc.perform(post(receivedUrl(playId, pinId, b.memberId(), a.memberId()))
+                        .header("Authorization", "Bearer " + a.token()))
+                .andExpect(status().isOk());
+        // A 가 받음을 잘못 눌렀음을 되돌림
+        mockMvc.perform(delete(receivedUrl(playId, pinId, b.memberId(), a.memberId()))
+                        .header("Authorization", "Bearer " + a.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.pinTransfers[0].sentAt").exists())
+                .andExpect(jsonPath("$.data.pinTransfers[0].receivedAt").doesNotExist());
+        // 결과적으로 받음이 안 된 상태이므로 마감 차단
+        mockMvc.perform(post("/api/plays/" + playId + "/settlement/close")
+                        .header("Authorization", "Bearer " + a.token()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PLAY_NOT_SETTLEABLE"));
+    }
+
+    @Test
+    @DisplayName("paidBy 가 아닌 사람이 received 취소 시도 - 403 TRANSFER_FORBIDDEN")
+    void cancelReceived_forbidden() throws Exception {
+        Session a = login("g-tm-cf-a", "tmcfa@gmail.com", "A");
+        Session b = login("g-tm-cf-b", "tmcfb@gmail.com", "B");
+        CrewCtx crew = createCrew(a.token(), "수신취소권한크루");
+        joinCrew(b.token(), crew.inviteCode());
+        long playId = createPlay(a.token(), crew.crewId(), Set.of(b.memberId()));
+        long pinId = createPin(a.token(), playId, 10000L, a.memberId(), List.of(
+                new SplitDto(a.memberId(), 5000L),
+                new SplitDto(b.memberId(), 5000L)
+        ));
+
+        mockMvc.perform(post(sentUrl(playId, pinId, b.memberId(), a.memberId()))
+                        .header("Authorization", "Bearer " + b.token()))
+                .andExpect(status().isOk());
+        mockMvc.perform(post(receivedUrl(playId, pinId, b.memberId(), a.memberId()))
+                        .header("Authorization", "Bearer " + a.token()))
+                .andExpect(status().isOk());
+        // B(송신자) 가 자기가 받았다고 했던 걸 취소 시도 — 권한 없음
+        mockMvc.perform(delete(receivedUrl(playId, pinId, b.memberId(), a.memberId()))
+                        .header("Authorization", "Bearer " + b.token()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("TRANSFER_FORBIDDEN"));
+    }
+
+    @Test
+    @DisplayName("받음 표시되지 않은 송금의 received 취소 시도 - 409 TRANSFER_NOT_RECEIVED")
+    void cancelReceived_notReceived() throws Exception {
+        Session a = login("g-tm-nr2-a", "tmnr2a@gmail.com", "A");
+        Session b = login("g-tm-nr2-b", "tmnr2b@gmail.com", "B");
+        CrewCtx crew = createCrew(a.token(), "선결수신취소크루");
+        joinCrew(b.token(), crew.inviteCode());
+        long playId = createPlay(a.token(), crew.crewId(), Set.of(b.memberId()));
+        long pinId = createPin(a.token(), playId, 10000L, a.memberId(), List.of(
+                new SplitDto(a.memberId(), 5000L),
+                new SplitDto(b.memberId(), 5000L)
+        ));
+
+        mockMvc.perform(post(sentUrl(playId, pinId, b.memberId(), a.memberId()))
+                        .header("Authorization", "Bearer " + b.token()))
+                .andExpect(status().isOk());
+        // 받음 누른 적 없는데 취소 시도
+        mockMvc.perform(delete(receivedUrl(playId, pinId, b.memberId(), a.memberId()))
+                        .header("Authorization", "Bearer " + a.token()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("TRANSFER_NOT_RECEIVED"));
+    }
+
+    @Test
+    @DisplayName("작성자 강제 마감 - 미수신 송금이 있어도 마감되고 settledAt 채워짐")
+    void forceClose_success() throws Exception {
+        Session a = login("g-tm-fc-a", "tmfca@gmail.com", "A");
+        Session b = login("g-tm-fc-b", "tmfcb@gmail.com", "B");
+        CrewCtx crew = createCrew(a.token(), "강제마감크루");
+        joinCrew(b.token(), crew.inviteCode());
+        long playId = createPlay(a.token(), crew.crewId(), Set.of(b.memberId()));
+        long pinId = createPin(a.token(), playId, 10000L, a.memberId(), List.of(
+                new SplitDto(a.memberId(), 5000L),
+                new SplitDto(b.memberId(), 5000L)
+        ));
+
+        // sent 만 되어 있고 received 안 됨
+        mockMvc.perform(post(sentUrl(playId, pinId, b.memberId(), a.memberId()))
+                        .header("Authorization", "Bearer " + b.token()))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/plays/" + playId + "/settlement/force-close")
+                        .header("Authorization", "Bearer " + a.token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"수신자가 응답 없음\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.settledAt").exists());
+    }
+
+    @Test
+    @DisplayName("작성자 아닌 사람이 강제 마감 시도 - 403 NOT_PLAY_OWNER")
+    void forceClose_forbidden() throws Exception {
+        Session a = login("g-tm-ff-a", "tmffa@gmail.com", "A");
+        Session b = login("g-tm-ff-b", "tmffb@gmail.com", "B");
+        CrewCtx crew = createCrew(a.token(), "강제마감권한크루");
+        joinCrew(b.token(), crew.inviteCode());
+        long playId = createPlay(a.token(), crew.crewId(), Set.of(b.memberId()));
+        createPin(a.token(), playId, 10000L, a.memberId(), List.of(
+                new SplitDto(a.memberId(), 5000L),
+                new SplitDto(b.memberId(), 5000L)
+        ));
+
+        mockMvc.perform(post("/api/plays/" + playId + "/settlement/force-close")
+                        .header("Authorization", "Bearer " + b.token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("NOT_PLAY_OWNER"));
+    }
 }
