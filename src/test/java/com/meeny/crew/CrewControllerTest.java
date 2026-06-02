@@ -253,4 +253,110 @@ class CrewControllerTest {
         mockMvc.perform(get("/api/crews"))
                 .andExpect(status().isUnauthorized());
     }
+
+    private long myId(String token) throws Exception {
+        return objectMapper.readTree(mockMvc.perform(get("/api/users/me")
+                        .header("Authorization", "Bearer " + token))
+                .andReturn().getResponse().getContentAsString())
+                .at("/data/id").asLong();
+    }
+
+    private String transferBody(long newOwnerId) throws Exception {
+        return "{\"newOwnerId\":" + newOwnerId + "}";
+    }
+
+    @Test
+    @DisplayName("소유권 양도 성공 - 새 owner 가 크루 수정 가능")
+    void transferOwnership_success() throws Exception {
+        String tokenOwner = loginAndGetToken("g-to-o", "too@gmail.com", "오너");
+        String tokenNew = loginAndGetToken("g-to-n", "ton@gmail.com", "새오너");
+
+        String inviteCode = createCrewAndGetInviteCode(tokenOwner, "양도크루");
+        MvcResult joined = mockMvc.perform(post("/api/crews/join")
+                        .header("Authorization", "Bearer " + tokenNew)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new JoinByCodeRequest(inviteCode))))
+                .andExpect(status().isOk()).andReturn();
+        long crewId = objectMapper.readTree(joined.getResponse().getContentAsString())
+                .at("/data/id").asLong();
+        long newOwnerId = myId(tokenNew);
+
+        mockMvc.perform(post("/api/crews/" + crewId + "/owner")
+                        .header("Authorization", "Bearer " + tokenOwner)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(transferBody(newOwnerId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.createdBy").value(newOwnerId));
+
+        // 양도 후엔 새 owner 가 크루 수정 가능
+        mockMvc.perform(patch("/api/crews/" + crewId)
+                        .header("Authorization", "Bearer " + tokenNew)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new UpdateCrewRequest("양도후이름", null))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.name").value("양도후이름"));
+
+        // 이전 owner 는 더 이상 수정 불가
+        mockMvc.perform(patch("/api/crews/" + crewId)
+                        .header("Authorization", "Bearer " + tokenOwner)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new UpdateCrewRequest("거절", null))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("NOT_CREW_OWNER"));
+    }
+
+    @Test
+    @DisplayName("비-owner 가 양도 시도 - 403 NOT_CREW_OWNER")
+    void transferOwnership_notOwner() throws Exception {
+        String tokenOwner = loginAndGetToken("g-tn-o", "tno@gmail.com", "오너");
+        String tokenMember = loginAndGetToken("g-tn-m", "tnm@gmail.com", "멤버");
+
+        String inviteCode = createCrewAndGetInviteCode(tokenOwner, "비오너양도크루");
+        long crewId = objectMapper.readTree(mockMvc.perform(post("/api/crews/join")
+                        .header("Authorization", "Bearer " + tokenMember)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new JoinByCodeRequest(inviteCode))))
+                .andReturn().getResponse().getContentAsString())
+                .at("/data/id").asLong();
+        long ownerId = myId(tokenOwner);
+
+        mockMvc.perform(post("/api/crews/" + crewId + "/owner")
+                        .header("Authorization", "Bearer " + tokenMember)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(transferBody(ownerId)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("NOT_CREW_OWNER"));
+    }
+
+    @Test
+    @DisplayName("크루 멤버 아닌 자에게 양도 시도 - 403 NOT_CREW_MEMBER")
+    void transferOwnership_notMember() throws Exception {
+        String tokenOwner = loginAndGetToken("g-tnm-o", "tnmo@gmail.com", "오너");
+        String tokenOutsider = loginAndGetToken("g-tnm-x", "tnmx@gmail.com", "외부");
+
+        long crewId = createCrewAndGetId(tokenOwner, "외부양도크루");
+        long outsiderId = myId(tokenOutsider);
+
+        mockMvc.perform(post("/api/crews/" + crewId + "/owner")
+                        .header("Authorization", "Bearer " + tokenOwner)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(transferBody(outsiderId)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("NOT_CREW_MEMBER"));
+    }
+
+    @Test
+    @DisplayName("자기 자신에게 양도 시도 - 400 CREW_OWNER_SAME_AS_CURRENT")
+    void transferOwnership_self() throws Exception {
+        String tokenOwner = loginAndGetToken("g-ts-o", "tso@gmail.com", "오너");
+        long crewId = createCrewAndGetId(tokenOwner, "자기양도크루");
+        long ownerId = myId(tokenOwner);
+
+        mockMvc.perform(post("/api/crews/" + crewId + "/owner")
+                        .header("Authorization", "Bearer " + tokenOwner)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(transferBody(ownerId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("CREW_OWNER_SAME_AS_CURRENT"));
+    }
 }

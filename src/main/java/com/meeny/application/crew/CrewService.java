@@ -97,6 +97,16 @@ public class CrewService {
         return toResponse(crew);
     }
 
+    // 소유권 양도: 현재 owner 만 호출, 대상은 크루 멤버. 양도 이력은 ActivityLog 로 보존.
+    @Transactional
+    public CrewResponse transferOwnership(Long crewId, Long currentOwnerId, Long newOwnerId) {
+        Crew crew = findCrew(crewId);
+        crew.transferOwnership(currentOwnerId, newOwnerId);
+        activityLogService.record(crewId, currentOwnerId, ActivityType.CREW_OWNERSHIP_TRANSFERRED,
+                Map.of("fromMemberId", currentOwnerId, "toMemberId", newOwnerId));
+        return toResponse(crew);
+    }
+
     // 응답 빌드: 크루의 멤버 ID 묶음으로 회원 정보를 한 번에 조회해 닉네임/프로필을 같이 내려준다.
     private CrewResponse toResponse(Crew crew) {
         List<Member> members = memberRepository.findAllById(crew.getMemberIds());

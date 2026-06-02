@@ -101,4 +101,17 @@ public class Crew {
             throw new BusinessException(ErrorCode.NOT_CREW_OWNER);
         }
     }
+
+    // 소유권 양도: 현재 owner 만 호출 가능, 대상은 크루 멤버여야 함, 자기 자신에게는 양도 불가.
+    // createdBy 가 현재 owner 를 의미하도록 의도적으로 갈아끼움; 최초 생성자 정보는 ActivityLog 로 추적.
+    public void transferOwnership(Long currentOwnerId, Long newOwnerId) {
+        verifyOwner(currentOwnerId);
+        if (currentOwnerId.equals(newOwnerId)) {
+            throw new BusinessException(ErrorCode.CREW_OWNER_SAME_AS_CURRENT);
+        }
+        if (!isMember(newOwnerId)) {
+            throw new BusinessException(ErrorCode.NOT_CREW_MEMBER);
+        }
+        this.createdBy = newOwnerId;
+    }
 }
