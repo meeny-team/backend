@@ -7,6 +7,7 @@ import com.meeny.domain.activity.pin.PinCategory;
 import com.meeny.domain.activity.pin.SettlementType;
 import com.meeny.domain.activity.play.PlayType;
 import com.meeny.infrastructure.aws.S3Storage;
+import com.meeny.infrastructure.aws.S3UrlSigner;
 import com.meeny.infrastructure.oauth.OAuthClientRegistry;
 import com.meeny.presentation.auth.dto.SocialLoginRequest;
 import com.meeny.presentation.crew.dto.CreateCrewRequest;
@@ -57,8 +58,13 @@ class PinImageCleanupTest {
     private OAuthClientRegistry oauthClientRegistry;
     @MockitoBean
     private S3Storage s3Storage;
+    // CI 환경엔 AWS credential 이 없어 실제 S3Presigner 호출이 실패한다.
+    // PinResponse.from 이 sign 을 호출하는 경로만 빠르게 우회 (입력을 그대로 반환).
+    @MockitoBean
+    private S3UrlSigner imageSigner;
 
     private String login(String providerId, String email, String nickname) throws Exception {
+        given(imageSigner.sign(anyString())).willAnswer(inv -> inv.getArgument(0));
         given(oauthClientRegistry.getUserInfo(any(SocialProvider.class), anyString()))
                 .willReturn(new OAuthUserInfo(providerId, email, nickname));
         MvcResult result = mockMvc.perform(post("/api/auth/social")
