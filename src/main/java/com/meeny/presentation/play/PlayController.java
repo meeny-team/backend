@@ -3,12 +3,17 @@ package com.meeny.presentation.play;
 import com.meeny.application.play.PlayService;
 import com.meeny.application.play.PlaySettlementService;
 import com.meeny.common.response.ApiResponse;
+import com.meeny.common.response.PageResponse;
+import com.meeny.domain.activity.play.PlayType;
 import com.meeny.presentation.play.dto.CreatePlayRequest;
 import com.meeny.presentation.play.dto.PlayResponse;
 import com.meeny.presentation.play.dto.PlaySettlementResponse;
 import com.meeny.presentation.play.dto.UpdatePlayRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -35,6 +40,18 @@ public class PlayController {
             @AuthenticationPrincipal Long memberId,
             @PathVariable Long crewId) {
         return ResponseEntity.ok(ApiResponse.ok(playService.getPlaysByCrew(crewId, memberId)));
+    }
+
+    // 검색 + 페이지네이션. type/keyword 모두 옵셔널. 기본 정렬은 createdAt desc.
+    @GetMapping("/api/crews/{crewId}/plays/search")
+    public ResponseEntity<ApiResponse<PageResponse<PlayResponse>>> search(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long crewId,
+            @RequestParam(required = false) PlayType type,
+            @RequestParam(required = false) String keyword,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                playService.searchPlays(crewId, memberId, type, keyword, pageable)));
     }
 
     @GetMapping("/api/plays/{playId}")

@@ -3,6 +3,7 @@ package com.meeny.application.play;
 import com.meeny.application.activity.ActivityLogService;
 import com.meeny.common.exception.BusinessException;
 import com.meeny.common.exception.ErrorCode;
+import com.meeny.common.response.PageResponse;
 import com.meeny.domain.activity.crew.Crew;
 import com.meeny.domain.activity.crew.CrewRepository;
 import com.meeny.domain.activity.log.ActivityType;
@@ -11,6 +12,7 @@ import com.meeny.domain.activity.pin.PinRepository;
 import com.meeny.domain.activity.pin.PlaySettlementResult;
 import com.meeny.domain.activity.play.Play;
 import com.meeny.domain.activity.play.PlayRepository;
+import com.meeny.domain.activity.play.PlayType;
 import com.meeny.domain.identity.Member;
 import com.meeny.domain.identity.MemberRepository;
 import com.meeny.infrastructure.aws.S3UrlSigner;
@@ -18,6 +20,8 @@ import com.meeny.presentation.play.dto.CreatePlayRequest;
 import com.meeny.presentation.play.dto.PlayResponse;
 import com.meeny.presentation.play.dto.UpdatePlayRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,6 +76,15 @@ public class PlayService {
         return playRepository.findAllByCrewId(crewId).stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    // 필터 + 페이지네이션. type / keyword null 인 필드는 무시. 크루 멤버에게만 노출.
+    public PageResponse<PlayResponse> searchPlays(
+            Long crewId, Long memberId, PlayType type, String keyword, Pageable pageable) {
+        Crew crew = findCrew(crewId);
+        crew.verifyMember(memberId);
+        Page<Play> page = playRepository.search(crewId, type, keyword, pageable);
+        return PageResponse.from(page.map(this::toResponse));
     }
 
     // Play 단건 조회 (크루 멤버에게만 노출)

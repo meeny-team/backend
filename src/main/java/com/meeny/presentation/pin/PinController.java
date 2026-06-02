@@ -2,11 +2,16 @@ package com.meeny.presentation.pin;
 
 import com.meeny.application.pin.PinService;
 import com.meeny.common.response.ApiResponse;
+import com.meeny.common.response.PageResponse;
+import com.meeny.domain.activity.pin.PinCategory;
 import com.meeny.presentation.pin.dto.CreatePinRequest;
 import com.meeny.presentation.pin.dto.PinResponse;
 import com.meeny.presentation.pin.dto.UpdatePinRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -32,6 +37,19 @@ public class PinController {
             @AuthenticationPrincipal Long memberId,
             @PathVariable Long playId) {
         return ResponseEntity.ok(ApiResponse.ok(pinService.getPinsByPlay(playId, memberId)));
+    }
+
+    // 검색 + 페이지네이션. category/authorId/keyword 모두 옵셔널. 기본 정렬은 createdAt desc.
+    @GetMapping("/api/plays/{playId}/pins/search")
+    public ResponseEntity<ApiResponse<PageResponse<PinResponse>>> search(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long playId,
+            @RequestParam(required = false) PinCategory category,
+            @RequestParam(required = false) Long authorId,
+            @RequestParam(required = false) String keyword,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                pinService.searchPins(playId, memberId, category, authorId, keyword, pageable)));
     }
 
     @GetMapping("/api/pins/{pinId}")

@@ -3,10 +3,12 @@ package com.meeny.application.pin;
 import com.meeny.application.activity.ActivityLogService;
 import com.meeny.common.exception.BusinessException;
 import com.meeny.common.exception.ErrorCode;
+import com.meeny.common.response.PageResponse;
 import com.meeny.domain.activity.crew.Crew;
 import com.meeny.domain.activity.crew.CrewRepository;
 import com.meeny.domain.activity.log.ActivityType;
 import com.meeny.domain.activity.pin.Pin;
+import com.meeny.domain.activity.pin.PinCategory;
 import com.meeny.domain.activity.pin.PinRepository;
 import com.meeny.domain.activity.pin.Split;
 import com.meeny.domain.activity.play.Play;
@@ -17,6 +19,8 @@ import com.meeny.presentation.pin.dto.PinResponse;
 import com.meeny.presentation.pin.dto.SplitDto;
 import com.meeny.presentation.pin.dto.UpdatePinRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -70,6 +74,15 @@ public class PinService {
         return pinRepository.findAllByPlayId(playId).stream()
                 .map(p -> PinResponse.from(p, imageSigner))
                 .toList();
+    }
+
+    // 필터 + 페이지네이션. null 인 필터는 무시. 크루 멤버에게만 노출.
+    public PageResponse<PinResponse> searchPins(
+            Long playId, Long memberId, PinCategory category, Long authorId, String keyword, Pageable pageable) {
+        Play play = findPlay(playId);
+        verifyPlayCrewMember(play, memberId);
+        Page<Pin> page = pinRepository.search(playId, category, authorId, keyword, pageable);
+        return PageResponse.from(page.map(p -> PinResponse.from(p, imageSigner)));
     }
 
     // 핀 단건 조회 (크루 멤버에게만 노출)
