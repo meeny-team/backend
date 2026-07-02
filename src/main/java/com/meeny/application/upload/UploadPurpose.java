@@ -3,6 +3,7 @@ package com.meeny.application.upload;
 public enum UploadPurpose {
     PROFILE("profiles"),
     CREW("crews"),
+    PLAY("plays"),
     PIN("pins");
 
     private final String prefix;
