@@ -8,7 +8,10 @@ public record MemberProfileResponse(
         String nickname,
         String email,
         String profileImage,
-        String bio
+        String bio,
+        String bankCode,
+        String accountNumber,
+        String accountHolderName
 ) {
     public static MemberProfileResponse from(Member member, S3UrlSigner imageSigner) {
         return new MemberProfileResponse(
@@ -16,7 +19,10 @@ public record MemberProfileResponse(
                 member.getNickname(),
                 member.getEmail(),
                 imageSigner.sign(member.getProfileImage()),
-                member.getBio()
+                member.getBio(),
+                member.getBankCode(),
+                member.getAccountNumber(),
+                member.getAccountHolderName()
         );
     }
 }

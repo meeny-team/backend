@@ -41,6 +41,15 @@ public class Member {
     @Column(length = 100)
     private String bio;
 
+    @Column(name = "bank_code", length = 20)
+    private String bankCode;
+
+    @Column(name = "account_number", length = 30)
+    private String accountNumber;
+
+    @Column(name = "account_holder_name", length = 50)
+    private String accountHolderName;
+
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
@@ -65,6 +74,25 @@ public class Member {
         if (bio != null) {
             this.bio = bio.isBlank() ? null : bio;
         }
+    }
+
+    // 계좌 부분 수정: null 은 변경하지 않음, 빈 문자열은 등록 해제(모두 null)로 정규화.
+    // 계좌번호는 공백/하이픈 을 제거해 숫자만 저장한다.
+    public void updateBankInfo(String bankCode, String accountNumber, String accountHolderName) {
+        if (bankCode != null) {
+            this.bankCode = bankCode.isBlank() ? null : bankCode;
+        }
+        if (accountNumber != null) {
+            String normalized = accountNumber.replaceAll("[\\s-]", "");
+            this.accountNumber = normalized.isBlank() ? null : normalized;
+        }
+        if (accountHolderName != null) {
+            this.accountHolderName = accountHolderName.isBlank() ? null : accountHolderName;
+        }
+    }
+
+    public boolean hasBankAccount() {
+        return bankCode != null && accountNumber != null;
     }
 
     // 탈퇴 처리: 과거 정산 기록의 외래키 무결성을 위해 삭제 대신 시점만 기록
