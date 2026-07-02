@@ -88,7 +88,7 @@ class MemberControllerTest {
     void updateProfile_success() throws Exception {
         String accessToken = loginAndGetAccessToken("google-uid-update", "update@gmail.com", "원래닉네임");
 
-        UpdateProfileRequest request = new UpdateProfileRequest("새닉네임", "https://img.example/u.png", "안녕하세요");
+        UpdateProfileRequest request = new UpdateProfileRequest("새닉네임", "https://img.example/u.png", "안녕하세요", null, null, null);
 
         mockMvc.perform(patch("/api/users/me")
                         .header("Authorization", "Bearer " + accessToken)
@@ -106,7 +106,7 @@ class MemberControllerTest {
         String accessToken = loginAndGetAccessToken("google-uid-long", "long@gmail.com", "닉");
 
         String longNickname = "가".repeat(21);
-        UpdateProfileRequest request = new UpdateProfileRequest(longNickname, null, null);
+        UpdateProfileRequest request = new UpdateProfileRequest(longNickname, null, null, null, null, null);
 
         mockMvc.perform(patch("/api/users/me")
                         .header("Authorization", "Bearer " + accessToken)

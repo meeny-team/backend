@@ -27,11 +27,12 @@ public class MemberService {
         return MemberProfileResponse.from(member, imageSigner);
     }
 
-    // 프로필 수정: 닉네임, 프로필 이미지, 자기소개 변경
+    // 프로필 수정: 닉네임/이미지/소개 + 계좌 정보를 부분 업데이트. null 필드는 기존 값 유지.
     @Transactional
     public MemberProfileResponse updateProfile(Long memberId, UpdateProfileRequest request) {
         Member member = findActiveMember(memberId);
         member.updateProfile(request.nickname(), request.profileImage(), request.bio());
+        member.updateBankInfo(request.bankCode(), request.accountNumber(), request.accountHolderName());
         return MemberProfileResponse.from(member, imageSigner);
     }
 

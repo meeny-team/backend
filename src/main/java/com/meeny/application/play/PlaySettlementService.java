@@ -59,8 +59,8 @@ public class PlaySettlementService {
         activityLogService.record(play.getCrewId(), memberId, ActivityType.PLAY_SETTLED,
                 Map.of("playId", playId, "playTitle", play.getTitle()));
         PlaySettlementResult result = PlaySettlementResult.of(play.getMemberIds(), pins);
-        Map<Long, String> nicknames = loadDisplayNicknames(result);
-        return PlaySettlementResponse.from(playId, play.getSettledAt(), result, pins, marks, nicknames);
+        Map<Long, Member> memberIndex = loadMemberIndex(result);
+        return PlaySettlementResponse.from(playId, play.getSettledAt(), result, pins, marks, memberIndex);
     }
 
     // 작성자 강제 마감: 모든 송금이 received 되지 않아도 마감. 미수신 송금 카운트를 ActivityLog 에 남겨 감사 추적 가능.
@@ -86,8 +86,8 @@ public class PlaySettlementService {
                         "reason", reason == null ? "" : reason
                 ));
         PlaySettlementResult result = PlaySettlementResult.of(play.getMemberIds(), pins);
-        Map<Long, String> nicknames = loadDisplayNicknames(result);
-        return PlaySettlementResponse.from(playId, play.getSettledAt(), result, pins, marks, nicknames);
+        Map<Long, Member> memberIndex = loadMemberIndex(result);
+        return PlaySettlementResponse.from(playId, play.getSettledAt(), result, pins, marks, memberIndex);
     }
 
     // Play 단위 정산 계산: 모든 핀의 결제/분배를 합산해 멤버별 잔액과 송금 내역을 산출, 닉네임은 일괄 조회로 주입
@@ -101,8 +101,8 @@ public class PlaySettlementService {
         List<Pin> pins = pinRepository.findAllByPlayId(playId);
         List<PinTransferMark> marks = loadMarks(pins);
         PlaySettlementResult result = PlaySettlementResult.of(play.getMemberIds(), pins);
-        Map<Long, String> nicknames = loadDisplayNicknames(result);
-        return PlaySettlementResponse.from(playId, play.getSettledAt(), result, pins, marks, nicknames);
+        Map<Long, Member> memberIndex = loadMemberIndex(result);
+        return PlaySettlementResponse.from(playId, play.getSettledAt(), result, pins, marks, memberIndex);
     }
 
     // 송신자가 "보냈음" 표시. 권한: from = caller. row 없으면 생성, 있으면 idempotent.
@@ -269,12 +269,13 @@ public class PlaySettlementService {
                 .sum();
     }
 
-    // 결과에 등장하는 모든 멤버 ID(탈퇴자 포함)를 한 번에 조회해 표시용 닉네임 맵 생성
-    private Map<Long, String> loadDisplayNicknames(PlaySettlementResult result) {
+    // 결과에 등장하는 모든 멤버 ID(탈퇴자 포함)를 한 번에 조회해 memberId → Member 맵 생성.
+    // DTO 팩토리에서 표시용 닉네임과 계좌 정보를 함께 추출한다.
+    private Map<Long, Member> loadMemberIndex(PlaySettlementResult result) {
         Set<Long> ids = result.memberBalances().stream()
                 .map(MemberBalance::memberId)
                 .collect(Collectors.toSet());
         return memberRepository.findAllById(ids).stream()
-                .collect(Collectors.toMap(Member::getId, Member::getDisplayNickname));
+                .collect(Collectors.toMap(Member::getId, m -> m));
     }
 }
