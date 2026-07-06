@@ -105,7 +105,7 @@ class PinImageCleanupTest {
 
     private long createPinWithImages(String token, long playId, long memberId, List<String> images) throws Exception {
         CreatePinRequest request = new CreatePinRequest(playId, 10000L,
-                PinCategory.FOOD, "이미지핀", null, null, images,
+                PinCategory.FOOD, "이미지핀", null, null, null, null, images,
                 new SettlementDto(SettlementType.EQUAL, memberId),
                 List.of(new SplitDto(memberId, 10000L)));
         return objectMapper.readTree(mockMvc.perform(post("/api/pins")
@@ -140,7 +140,7 @@ class PinImageCleanupTest {
 
         // b.jpg 만 빠뜨림. 클라이언트는 signed URL 형태로 보낼 수 있음 — query string 이 붙어 있어도 동일 키로 인식돼야 함.
         UpdatePinRequest update = new UpdatePinRequest(
-                null, null, null, null, null,
+                null, null, null, null, null, null, null,
                 List.of(url("a.jpg") + "?X-Amz-Signature=abc", url("c.jpg")),
                 null, null);
         mockMvc.perform(patch("/api/pins/" + pinId)

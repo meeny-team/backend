@@ -65,6 +65,7 @@ public class PinService {
                 splits,
                 play.getMemberIds()
         );
+        pin.applyCoordinates(request.latitude(), request.longitude());
         Pin saved = pinRepository.save(pin);
         activityLogService.record(play.getCrewId(), authorId, ActivityType.PIN_ADDED,
                 Map.of("playId", play.getId(), "pinId", saved.getId(),
@@ -128,6 +129,7 @@ public class PinService {
                 splits,
                 play.getMemberIds()
         );
+        pin.applyCoordinates(request.latitude(), request.longitude());
         activityLogService.record(play.getCrewId(), memberId, ActivityType.PIN_UPDATED,
                 Map.of("playId", play.getId(), "pinId", pin.getId(),
                         "pinTitle", pin.getTitle(), "amount", pin.getAmount()));

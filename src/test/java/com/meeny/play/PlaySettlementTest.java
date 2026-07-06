@@ -107,7 +107,7 @@ class PlaySettlementTest {
 
     private void createPin(String token, long playId, long amount, Long paidBy, List<SplitDto> splits) throws Exception {
         CreatePinRequest request = new CreatePinRequest(
-                playId, amount, PinCategory.FOOD, "pin", null, null, null,
+                playId, amount, PinCategory.FOOD, "pin", null, null, null, null, null,
                 new SettlementDto(SettlementType.EQUAL, paidBy),
                 splits
         );
@@ -317,7 +317,7 @@ class PlaySettlementTest {
         // 마감 후 핀 추가 시도 → 409
         var blockedPin = new com.meeny.presentation.pin.dto.CreatePinRequest(
                 playId, 5000L, com.meeny.domain.activity.pin.PinCategory.FOOD,
-                "blocked", null, null, null,
+                "blocked", null, null, null, null, null,
                 new com.meeny.presentation.pin.dto.SettlementDto(com.meeny.domain.activity.pin.SettlementType.EQUAL, a.memberId()),
                 List.of(new SplitDto(a.memberId(), 5000L))
         );
