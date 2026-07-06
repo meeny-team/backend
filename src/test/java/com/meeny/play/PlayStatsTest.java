@@ -85,7 +85,7 @@ class PlayStatsTest {
     }
 
     private void createPin(String token, long playId, long me, long amount, PinCategory cat) throws Exception {
-        CreatePinRequest req = new CreatePinRequest(playId, amount, cat, cat.name(), null, null, null,
+        CreatePinRequest req = new CreatePinRequest(playId, amount, cat, cat.name(), null, null, null, null, null,
                 new SettlementDto(SettlementType.EQUAL, me),
                 List.of(new SplitDto(me, amount)));
         mockMvc.perform(post("/api/pins")

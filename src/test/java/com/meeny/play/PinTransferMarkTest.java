@@ -107,7 +107,7 @@ class PinTransferMarkTest {
 
     private long createPin(String token, long playId, long amount, Long paidBy, List<SplitDto> splits) throws Exception {
         CreatePinRequest request = new CreatePinRequest(
-                playId, amount, PinCategory.FOOD, "pin", null, null, null,
+                playId, amount, PinCategory.FOOD, "pin", null, null, null, null, null,
                 new SettlementDto(SettlementType.EQUAL, paidBy),
                 splits
         );

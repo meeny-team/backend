@@ -123,6 +123,8 @@ class PinControllerTest {
                 "삼겹살",
                 "맛있었음",
                 "성수동",
+                null,
+                null,
                 List.of("https://example.com/img1.jpg"),
                 new SettlementDto(SettlementType.EQUAL, author.memberId()),
                 List.of(
@@ -154,7 +156,7 @@ class PinControllerTest {
         long playId = createPlay(author.token(), crew.crewId(), Set.of());
 
         CreatePinRequest request = new CreatePinRequest(
-                playId, 1000L, PinCategory.FOOD, "test", null, null, null,
+                playId, 1000L, PinCategory.FOOD, "test", null, null, null, null, null,
                 new SettlementDto(SettlementType.EQUAL, outsider.memberId()),
                 List.of(new SplitDto(outsider.memberId(), 1000L))
         );
@@ -178,7 +180,7 @@ class PinControllerTest {
         long playId = createPlay(author.token(), crew.crewId(), Set.of());
 
         CreatePinRequest request = new CreatePinRequest(
-                playId, 1000L, PinCategory.FOOD, "test", null, null, null,
+                playId, 1000L, PinCategory.FOOD, "test", null, null, null, null, null,
                 new SettlementDto(SettlementType.EQUAL, crewOnly.memberId()),
                 List.of(new SplitDto(author.memberId(), 1000L))
         );
@@ -201,7 +203,7 @@ class PinControllerTest {
         long playId = createPlay(author.token(), crew.crewId(), Set.of());
 
         CreatePinRequest request = new CreatePinRequest(
-                playId, 1000L, PinCategory.FOOD, "test", null, null, null,
+                playId, 1000L, PinCategory.FOOD, "test", null, null, null, null, null,
                 new SettlementDto(SettlementType.EQUAL, author.memberId()),
                 List.of(
                         new SplitDto(author.memberId(), 500L),
@@ -225,7 +227,7 @@ class PinControllerTest {
         long playId = createPlay(author.token(), crew.crewId(), Set.of());
 
         CreatePinRequest request = new CreatePinRequest(
-                playId, 10000L, PinCategory.FOOD, "test", null, null, null,
+                playId, 10000L, PinCategory.FOOD, "test", null, null, null, null, null,
                 new SettlementDto(SettlementType.CUSTOM, author.memberId()),
                 List.of(new SplitDto(author.memberId(), 9000L))
         );
@@ -250,7 +252,7 @@ class PinControllerTest {
 
         // 핀 1개 생성
         CreatePinRequest request = new CreatePinRequest(
-                playId, 1000L, PinCategory.FOOD, "p", null, null, null,
+                playId, 1000L, PinCategory.FOOD, "p", null, null, null, null, null,
                 new SettlementDto(SettlementType.EQUAL, author.memberId()),
                 List.of(new SplitDto(author.memberId(), 1000L))
         );
@@ -283,7 +285,7 @@ class PinControllerTest {
         long playId = createPlay(author.token(), crew.crewId(), Set.of(member.memberId()));
 
         CreatePinRequest createReq = new CreatePinRequest(
-                playId, 2000L, PinCategory.FOOD, "원래", null, null, null,
+                playId, 2000L, PinCategory.FOOD, "원래", null, null, null, null, null,
                 new SettlementDto(SettlementType.EQUAL, author.memberId()),
                 List.of(
                         new SplitDto(author.memberId(), 1000L),
@@ -298,7 +300,7 @@ class PinControllerTest {
                 .at("/data/id").asLong();
 
         UpdatePinRequest updateReq = new UpdatePinRequest(
-                null, null, "수정된제목", null, null, null, null, null
+                null, null, "수정된제목", null, null, null, null, null, null, null
         );
 
         mockMvc.perform(patch("/api/pins/" + pinId)
@@ -324,7 +326,7 @@ class PinControllerTest {
         long playId = createPlay(author.token(), crew.crewId(), Set.of());
 
         CreatePinRequest createReq = new CreatePinRequest(
-                playId, 1000L, PinCategory.FOOD, "delete-target", null, null, null,
+                playId, 1000L, PinCategory.FOOD, "delete-target", null, null, null, null, null,
                 new SettlementDto(SettlementType.EQUAL, author.memberId()),
                 List.of(new SplitDto(author.memberId(), 1000L))
         );

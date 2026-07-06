@@ -43,6 +43,13 @@ public class Pin {
     @Column(length = 200)
     private String location;
 
+    // 지도 마커용 좌표. 좌표가 있는 핀만 지도 뷰에 표시된다. 텍스트 location 은 별개로 유지 (라벨/검색용).
+    @Column
+    private Double latitude;
+
+    @Column
+    private Double longitude;
+
     @Embedded
     private Settlement settlement;
 
@@ -86,6 +93,15 @@ public class Pin {
         pin.splits = List.copyOf(splits);
         pin.createdAt = LocalDateTime.now();
         return pin;
+    }
+
+    // 좌표 반영: null 이면 변경 없음, 값이 있으면 갱신. 기존 좌표를 지우고 싶으면 두 값 모두 명시적으로 다시 채워야 함
+    // (부분 갱신은 위/경도 쌍이 불일치하는 상태를 만들 수 있어 허용하지 않음).
+    public void applyCoordinates(Double latitude, Double longitude) {
+        if (latitude != null && longitude != null) {
+            this.latitude = latitude;
+            this.longitude = longitude;
+        }
     }
 
     public void updateBy(

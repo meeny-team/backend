@@ -26,6 +26,15 @@ public record CreatePinRequest(
         @Size(max = 200, message = "장소는 200자 이하여야 합니다.")
         String location,
 
+        // 지도 마커용 좌표 (선택). 위/경도는 쌍으로만 저장됨 — 하나만 보내면 무시된다.
+        @DecimalMin(value = "-90.0", message = "위도는 -90 이상이어야 합니다.")
+        @DecimalMax(value = "90.0", message = "위도는 90 이하여야 합니다.")
+        Double latitude,
+
+        @DecimalMin(value = "-180.0", message = "경도는 -180 이상이어야 합니다.")
+        @DecimalMax(value = "180.0", message = "경도는 180 이하여야 합니다.")
+        Double longitude,
+
         List<@NotBlank String> images,
 
         @Valid

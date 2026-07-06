@@ -85,7 +85,7 @@ class PinSearchTest {
     }
 
     private void createPin(String token, long playId, long me, String title, PinCategory cat) throws Exception {
-        CreatePinRequest req = new CreatePinRequest(playId, 10000L, cat, title, null, null, null,
+        CreatePinRequest req = new CreatePinRequest(playId, 10000L, cat, title, null, null, null, null, null,
                 new SettlementDto(SettlementType.EQUAL, me),
                 List.of(new SplitDto(me, 10000L)));
         mockMvc.perform(post("/api/pins")
