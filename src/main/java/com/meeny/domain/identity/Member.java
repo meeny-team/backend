@@ -95,20 +95,34 @@ public class Member {
         return bankCode != null && accountNumber != null;
     }
 
-    // 탈퇴 처리: 과거 정산 기록의 외래키 무결성을 위해 삭제 대신 시점만 기록
+    // 탈퇴 처리:
+    //  - 과거 정산 기록의 외래키 무결성을 위해 row 는 유지 (soft delete)
+    //  - Google Play + iOS 5.1.1(v) 정책: PII 는 파기해야 함
+    //     → email / profileImage / bio / bank 정보 파기, nickname 은 sentinel 로 대체
+    //       (nickname 컬럼이 NOT NULL 이므로 null 대신 DELETED_NICKNAME 저장)
+    //  - provider + providerId 는 유지 → 같은 소셜 계정으로 재로그인 시 reactivate() 매칭
     public void withdraw() {
-        if (deletedAt == null) {
-            this.deletedAt = LocalDateTime.now();
-        }
+        if (deletedAt != null) return;
+        this.deletedAt = LocalDateTime.now();
+        this.email = null;
+        this.profileImage = null;
+        this.bio = null;
+        this.bankCode = null;
+        this.accountNumber = null;
+        this.accountHolderName = null;
+        this.nickname = DELETED_NICKNAME;
     }
 
     // 같은 소셜 계정으로 다시 로그인한 탈퇴 회원의 계정을 되살림 (provider+providerId 유니크 제약 우회)
+    // 탈퇴 시 nickname 이 sentinel 로 대체되었으므로 새 nickname 이 없으면 기본값 "사용자" 로 복구
     public void reactivate(String email, String nickname) {
         if (deletedAt == null) return;
         this.deletedAt = null;
         this.email = email;
         if (nickname != null && !nickname.isBlank()) {
             this.nickname = nickname;
+        } else if (DELETED_NICKNAME.equals(this.nickname)) {
+            this.nickname = "사용자";
         }
     }
 
