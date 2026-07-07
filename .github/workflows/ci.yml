@@ -44,7 +44,8 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Build (compile + test)
+      - name: Build (compile + test + jacoco)
+        # test 태스크의 finalizedBy jacocoTestReport 로 커버리지 리포트도 자동 생성
         run: ./gradlew --no-daemon build
 
       # 실패한 테스트 리포트는 항상 남겨 디버깅에 쓸 수 있게.
@@ -58,6 +59,49 @@ jobs:
             build/test-results/
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Upload JaCoCo coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-coverage
+          path: build/reports/jacoco/test/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # PR / 브랜치 push 요약에 커버리지 수치를 상단에 노출.
+      # 하한 강제(jacocoCoverageVerification)는 이 PR 에서 하지 않음 — 먼저 현재 수치 트래킹.
+      - name: Coverage summary
+        if: always()
+        run: |
+          set -euo pipefail
+          REPORT=build/reports/jacoco/test/jacocoTestReport.xml
+          if [ ! -f "$REPORT" ]; then
+            echo "JaCoCo report not found — skipping summary."
+            exit 0
+          fi
+          totals=$(python3 -c "
+          import re
+          text = open('$REPORT').read()
+          # 파일 마지막의 report-level counter 만 추출 (package/class 안의 것 제외)
+          tail = text.rsplit('</package>', 1)[-1]
+          out = {}
+          for m in re.finditer(r'<counter type=\"(\w+)\" missed=\"(\d+)\" covered=\"(\d+)\"', tail):
+              t, mi, co = m.group(1), int(m.group(2)), int(m.group(3))
+              tot = mi + co
+              out[t] = (co, tot, 100 * co / tot if tot else 0.0)
+          for k in ['INSTRUCTION','BRANCH','LINE','METHOD','CLASS']:
+              if k in out:
+                  co, tot, pct = out[k]
+                  print(f'{k}\t{co}/{tot}\t{pct:.1f}%')
+          ")
+          {
+            echo "## JaCoCo 커버리지"
+            echo ""
+            echo "| Type | Covered | % |"
+            echo "|------|---------|---|"
+            echo "$totals" | awk -F'\t' '{printf "| %s | %s | %s |\n", $1, $2, $3}'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # 이미지 빌드/푸시는 main 으로의 push 일 때만 (= 배포 직전 PR merge / 직접 push).
   # dev·피쳐 브랜치·PR 이벤트에서는 안 돌아가고, 테스트(build job) 실패 시에도 needs: build 로 차단됨.
