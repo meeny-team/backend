@@ -2,6 +2,7 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.5.13'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id 'jacoco'
 }
 
 group = 'com.meeny'
@@ -70,4 +71,33 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	// JaCoCo agent 가 test 태스크에 붙어 exec 데이터를 build/jacoco/test.exec 로 떨어뜨림
+	finalizedBy tasks.named('jacocoTestReport')
+}
+
+jacoco {
+	// build.gradle 의 Spring Boot 3.5.13 / JDK 21 조합과 안전한 최신 안정 버전
+	toolVersion = '0.8.12'
+}
+
+jacocoTestReport {
+	dependsOn tasks.named('test')
+	reports {
+		xml.required = true    // CI 에서 파싱 가능한 형태 — 향후 codecov / PR 코멘트 봇 연동에 사용
+		html.required = true   // 로컬 개발자용 사람 눈 형태
+		csv.required = false
+	}
+	// DTO / config / Spring Boot Application 클래스처럼 로직 없는 껍데기는 리포트에서 제외
+	// 실측 커버리지가 부풀거나 꺼지는 걸 막기 위해 boundary 를 명확히
+	afterEvaluate {
+		classDirectories.setFrom(files(classDirectories.files.collect {
+			fileTree(dir: it, exclude: [
+				'com/meeny/MeenyApplication.class',
+				'com/meeny/**/config/**',
+				'com/meeny/**/dto/**',
+				'com/meeny/**/*Request.class',
+				'com/meeny/**/*Response.class',
+			])
+		}))
+	}
 }
