@@ -18,7 +18,10 @@
     </springProfile>
 
     <!-- 그 외(기본/local/test): 사람이 읽기 쉬운 컬러 콘솔 패턴 -->
+    <!-- requestId 는 MdcRequestIdFilter 가 주입 — 요청 밖 로그에서는 "-" 로 표기 -->
     <springProfile name="!prod">
+        <property name="CONSOLE_LOG_PATTERN"
+                  value="%clr(%d{HH:mm:ss.SSS}){faint} %clr(%5p) %clr([%X{requestId:--}]){magenta} %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"/>
         <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
